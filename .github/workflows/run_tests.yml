@@ -11,6 +11,46 @@ on:
 
 # This job installs dependencies, builds the code and runs the test framework
 jobs:
+  formatting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Install formatting tools
+      run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+    - name: Check whitespace
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        HEAD_SHA: ${{ github.sha }}
+      run: |
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA="$(git rev-list --max-parents=0 HEAD)"
+          fi
+          git diff --check "$BASE_SHA" "$HEAD_SHA"
+
+    - name: Check C++ formatting
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        HEAD_SHA: ${{ github.sha }}
+      run: |
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA="$(git rev-list --max-parents=0 HEAD)"
+          fi
+          files="$(git diff --name-only --diff-filter=ACMRT "$BASE_SHA" "$HEAD_SHA" -- '*.cpp' '*.h' '*.hpp' \
+              | grep -E '^(include|src|tests|examples)/' \
+              | grep -v '^examples/rng/linux/' || true)"
+          if [ -z "$files" ]; then
+              echo "No changed C++ files to format-check."
+              exit 0
+          fi
+          echo "$files" | xargs clang-format --dry-run --Werror
+
   run-tests:
     # Please don't run on MacOS runners, they are not generally worth the cost
     # If you believe you need MacOS runners, please contact the course staff first
