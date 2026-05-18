@@ -1,8 +1,27 @@
 # Palusznium rush
 
+## Team
+
+Cuprite
+
+Team members:
+
+- Bu, Tiankai
+- Yang, Tianyu
+- Lin, Shuning
+- Williams, Julia J
+- Gomathi Vivekananthan, Nitya
+- Chen, Hongxin
+- Chen, Shaolong
+- Lin, Ju
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
 ## Instructions
 
-Please see the [problem statement](Problem%20Statement%20for%20Genetic%20Algorithms%20project%202025.pdf) for the full instructions.
+Please see the [problem statement](Problem%20Statement%20for%20Genetic%20Algorithms%20Project%202026.pdf) for the full instructions.
 
 You should edit this README file to represent your project.
 

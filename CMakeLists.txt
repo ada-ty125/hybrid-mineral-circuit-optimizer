@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 # set the project name
 project(Genetic_Algorithm)
 
-set(TEAM_NAME "default")
+set(TEAM_NAME "Cuprite")
 set(CMAKE_CXX_STANDARD 20)
 
 # add graph library submodule
