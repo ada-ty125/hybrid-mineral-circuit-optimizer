@@ -1,0 +1,10 @@
+case_id,pal_pal,pal_gor,pal_waste,gor_pal,gor_gor,gor_waste,n_A,n_B,expected_gbp_per_s,note
+empty_1A,0,0,0,0,0,0,1,0,-10,empty streams + 1 type A unit
+empty_7A_3B,0,0,0,0,0,0,7,3,-106,empty streams + 7A + 3B base case unit mix
+pal_stream_pure_pal,1,0,0,0,0,0,0,0,120,1 kg/s palusznium in pal stream
+pal_stream_pure_gor,0,1,0,0,0,0,0,0,-20,1 kg/s gormanium in pal stream
+pal_stream_pure_waste,0,0,1,0,0,0,0,0,-500,1 kg/s waste in pal stream
+gor_stream_pure_pal,0,0,0,1,0,0,0,0,-5,1 kg/s palusznium in gor stream
+gor_stream_pure_gor,0,0,0,0,1,0,0,0,100,1 kg/s gormanium in gor stream
+gor_stream_pure_waste,0,0,0,0,0,1,0,0,-500,1 kg/s waste in gor stream
+mixed_realistic,2,0.1,0.05,0.05,3,0.04,7,3,386.75,realistic mixed case 7A 3B
