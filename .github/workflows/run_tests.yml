@@ -1,0 +1,57 @@
+name: run-tests
+
+# Only run this when the branch changes
+on:
+  push:
+
+# This job installs dependencies, builds the code and runs the test framework
+jobs:
+  run-tests:
+    # Please don't run on MacOS runners, they are not generally worth the cost
+    # If you believe you need MacOS runners, please contact the course staff first
+    # It's okay to run on Windows runners, but they are often slower than Linux runners
+    # to get results.
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: 'recursive' 
+
+    # Install Python
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v6
+      with:
+        python-version: 3.13
+
+    # Install dependencies
+    - name: Install dependencies
+      run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenmpi-dev build-essential
+
+    - name: Configure the code
+      run: |
+          cmake .
+
+    - name: Build the graph library dependency
+      run: |
+          make esegraph
+      
+    - name: Build the GA library
+      run: |
+          make geneticAlgorithm
+
+    - name: Build the circuit simulator library
+      run: |
+          make circuitSimulator
+
+    - name: Build the circuit optimizer
+      run: |
+          make Circuit_Optimizer
+
+    - name: Run the tests
+      run: |
+          make all
+          ctest -VV

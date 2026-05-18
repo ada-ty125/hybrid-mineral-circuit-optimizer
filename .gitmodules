@@ -1,0 +1,3 @@
+[submodule "esegraph"]
+	path = esegraph
+	url = git@github.com:ese-msc/esegraph.git
