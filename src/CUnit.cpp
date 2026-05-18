@@ -1,18 +1,12 @@
 #include "CUnit.h"
 #include <cmath>
 
-CUnit::CUnit() {
-    k[0] = 0.006;   // example Palusznium
-    k[1] = 0.0005;  // example Gormanium
-    k[2] = 0.0005;  // example Waste
-}
-
 double CUnit::total_feed() const{
   double total_feed = 0.0;
   for (int i = 0; i < N_COMPONENTS; i++) {
         total_feed += feed[i];
     }
-
+    return total_feed;
 }
 
 double CUnit::calculate_residence_time() const {
@@ -25,17 +19,24 @@ double CUnit::calculate_residence_time() const {
     return (phi * volume) / total_vol_flow;
 }
 
-double CUnit::calculate_recovery(int component) const {
+double CUnit::calculate_recovery(int st_idx, int component) const {
     double tau = calculate_residence_time();
+    double summation = 0.0;
+    int num_c_stream = n_outputs-1;
+    for (int m = 0; m < num_c_stream; m++){
+      summation += k_matrix[m][component] * tau;
+    }
+    double num = k_matrix[st_idx][component] * tau;
 
-    return (k[component] * tau) / (1.0 + k[component] * tau);
+    return num / (1 + summation);
 }
 void CUnit::calculate_outputs() {
-  concentrate.resize(n_outputs - 1);
+  int num_c_streams = n_outputs - 1;
+  concentrate.resize(num_c_streams);
   double total_recovery[N_COMPONENTS] = {0.0, 0.0, 0.0};
-  for (int out = 0; out < n_outputs - 1; out++) {
+  for (int out = 0; out < num_c_streams; out++) {
     for (int comp = 0; comp < N_COMPONENTS; comp++) {
-      double R = calculate_recovery(comp);
+      double R = calculate_recovery(out, comp);
       concentrate[out][comp] = feed[comp] * R;
       total_recovery[comp] += R;
     }

@@ -55,11 +55,16 @@ class CUnit {
   // k[2] = Waste
   double k[N_COMPONENTS] = {0.0, 0.0, 0.0};
 
+  double k_matrix[2][N_COMPONENTS] = {
+    {0.008, 0.006, 0.0005},  // Default Stream 1 constants (Type A values)
+    {0.0,   0.0,   0.0}       // Default Stream 2 constants (Zero for Type A)
+};
+
   // Simulation functions
   double total_feed() const;
   double calculate_residence_time() const;
 
-  double calculate_recovery(int component) const;
+  double calculate_recovery(int st_idx, int component) const;
 
   void calculate_outputs();
 
