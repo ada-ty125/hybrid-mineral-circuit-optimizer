@@ -1,23 +1,20 @@
 /** Header for the unit class
- * 
- * 
+ *
+ *
  */
 
 #pragma once
 
-#include <vector>
 #include <array>
-
+#include <vector>
 
 constexpr int N_COMPONENTS = 3;
 
 class CUnit {
-
  public:
+  int n_outputs;  // The number of outputs from this unit
 
-  int n_outputs; // The number of outputs from this unit
-
-  //A Boolean that is changed to true if the unit has been seen 
+  // A Boolean that is changed to true if the unit has been seen
   bool mark;
 
   // Output from this unit where [0] = Palusznium, [1] = Gormanium, [2] = Waste
@@ -56,9 +53,9 @@ class CUnit {
   double k[N_COMPONENTS] = {0.0, 0.0, 0.0};
 
   double k_matrix[2][N_COMPONENTS] = {
-    {0.008, 0.006, 0.0005},  // Default Stream 1 constants (Type A values)
-    {0.0,   0.0,   0.0}       // Default Stream 2 constants (Zero for Type A)
-};
+      {0.008, 0.006, 0.0005},  // Default Stream 1 constants (Type A values)
+      {0.0, 0.0, 0.0}          // Default Stream 2 constants (Zero for Type A)
+  };
 
   // Simulation functions
   double total_feed() const;
@@ -70,4 +67,3 @@ class CUnit {
 
   void clear_feeds();
 };
-
