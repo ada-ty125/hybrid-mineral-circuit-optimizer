@@ -30,4 +30,18 @@ double CUnit::calculate_recovery(int component) const {
 
     return (k[component] * tau) / (1.0 + k[component] * tau);
 }
+void CUnit::calculate_outputs() {
+  concentrate.resize(n_outputs - 1);
+  double total_recovery[N_COMPONENTS] = {0.0, 0.0, 0.0};
+  for (int out = 0; out < n_outputs - 1; out++) {
+    for (int comp = 0; comp < N_COMPONENTS; comp++) {
+      double R = calculate_recovery(comp);
+      concentrate[out][comp] = feed[comp] * R;
+      total_recovery[comp] += R;
+    }
+  }
+  for (int comp = 0; comp < N_COMPONENTS; comp++) {
+    tails[comp] = feed[comp] * (1.0 - total_recovery[comp]);
+  }
+}
 
