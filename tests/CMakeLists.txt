@@ -34,3 +34,7 @@ add_dependencies(speed_checker copy_data)
 
 
 add_test(NAME executable COMMAND Circuit_Optimizer)
+
+# test_economics needs the reference CSV available at runtime under data/
+# relative to its working directory.
+add_dependencies(test_economics copy_data)
