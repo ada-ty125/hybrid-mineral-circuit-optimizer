@@ -9,7 +9,7 @@
 #include <array>
 
 
-constexpr int N_COMPONENTS = 3
+constexpr int N_COMPONENTS = 3;
 
 class CUnit {
 
@@ -56,6 +56,7 @@ class CUnit {
   double k[N_COMPONENTS] = {0.0, 0.0, 0.0};
 
   // Simulation functions
+  double total_feed() const;
   double calculate_residence_time() const;
 
   double calculate_recovery(int component) const;

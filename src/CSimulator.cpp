@@ -21,6 +21,7 @@ double circuit_performance(const  Graph& graph,
   return performance; 
 }
 
+
 double circuit_performance(std::span<const int> const vec){ return 0.0;}
 
 bool check_validity(std::span<const int> const vector){ return true;}
