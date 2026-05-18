@@ -38,3 +38,45 @@ add_test(NAME executable COMMAND Circuit_Optimizer)
 # test_economics needs the reference CSV available at runtime under data/
 # relative to its working directory.
 add_dependencies(test_economics copy_data)
+
+# Google Benchmark target for the penalty function. Built only when
+# -DBUILD_BENCHMARKS=ON; otherwise FetchContent is skipped and this block
+# is a no-op.
+if(BUILD_BENCHMARKS)
+    # Best-effort capture of the current git sha so each CSV row is
+    # traceable to a commit. Falls back to "unknown" outside a git
+    # checkout.
+    execute_process(
+        COMMAND git rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE CUPRITE_GIT_SHA_VALUE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(NOT CUPRITE_GIT_SHA_VALUE)
+        set(CUPRITE_GIT_SHA_VALUE "unknown")
+    endif()
+
+    set(CUPRITE_BENCH_OUTPUT_DIR_VALUE
+        "${CMAKE_BINARY_DIR}/tests/bin/benchmarks")
+    file(MAKE_DIRECTORY "${CUPRITE_BENCH_OUTPUT_DIR_VALUE}")
+
+    add_executable(bench_economics simulator_tests/bench_economics.cpp)
+    target_link_libraries(bench_economics PRIVATE circuitEconomics
+        benchmark::benchmark)
+    target_compile_definitions(bench_economics PRIVATE
+        CUPRITE_GIT_SHA="${CUPRITE_GIT_SHA_VALUE}"
+        CUPRITE_BENCH_OUTPUT_DIR="${CUPRITE_BENCH_OUTPUT_DIR_VALUE}")
+    set_target_properties(bench_economics PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/bin/benchmarks")
+    add_dependencies(bench_economics copy_data)
+
+    # Copy data/ next to the bench binary too, so the reference CSV is
+    # readable when running directly from tests/bin/benchmarks/.
+    add_custom_target(copy_data_bench
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/tests/data"
+            "${CMAKE_BINARY_DIR}/tests/bin/benchmarks/data"
+    )
+    add_dependencies(bench_economics copy_data_bench)
+endif()
