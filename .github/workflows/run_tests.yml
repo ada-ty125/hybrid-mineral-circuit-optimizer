@@ -1,8 +1,13 @@
 name: run-tests
 
-# Only run this when the branch changes
+# Run this on every branch push and pull request.
 on:
   push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
 
 # This job installs dependencies, builds the code and runs the test framework
 jobs:
@@ -17,7 +22,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
       with:
-        submodules: 'recursive' 
+        submodules: 'recursive'
 
     # Install Python
     - name: Set up Python 3.13
@@ -38,7 +43,7 @@ jobs:
     - name: Build the graph library dependency
       run: |
           make esegraph
-      
+
     - name: Build the GA library
       run: |
           make geneticAlgorithm
