@@ -9,6 +9,7 @@
 #include "CSRGraph.h"
 #include "CUnit.h"
 #include "CCircuit.h"
+#include "Economics.h"
 
 bool check_validity(const CSRGraph& graph) {
     // This is function that checks if the graph is valid
@@ -293,11 +294,39 @@ double Circuit::evaluate() {
 
         // Stop if feeds are no longer changing significantly
         if (has_converged()) {
-            return 1.0;  // Placeholder success value (replace with actual performance calculation
-                         // later)
+            cuprite::Stream pal_product{
+                final_outputs[0][0], // pal
+                final_outputs[0][1], // gor
+                final_outputs[0][2]  // waste
+            };
+
+            cuprite::Stream gor_product{
+                final_outputs[1][0], // pal
+                final_outputs[1][1], // gor
+                final_outputs[1][2]  // waste
+            };
+
+            int n_A = 0;
+            int n_B = 0;
+            for (const auto& unit : units) {
+                if (unit.n_outputs == 2) {
+                    n_A++;
+                } else if (unit.n_outputs == 3) {
+                    n_B++;
+                }
+            }
+            cuprite::CircuitDescriptor descriptor{n_A, n_B};
+
+            return cuprite::economic_value(
+                pal_product,
+                gor_product,
+                descriptor,
+                cuprite::fixed_op_cost,
+                cuprite::default_economics
+            );
         }
     }
 
-    // If the loop reaches max_iterations, the circuit failed to converge
-    return -1e30;
+    // If the loop reaches max_iterations, fallback to your worst-case equation
+    return cuprite::worst_case_value(waste_feed, cuprite::default_economics);
 }
