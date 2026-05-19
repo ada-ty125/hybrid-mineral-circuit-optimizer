@@ -1,8 +1,9 @@
 #include "Genetic_Algorithm.h"
-#include <iostream>
 #include <algorithm>
-#include <numeric>
 #include <cmath>
+#include <fstream>
+#include <iostream>
+#include <numeric>
 #include <omp.h>
 
 Algorithm_Parameters default_ga_parameters;
@@ -31,6 +32,7 @@ void multi_point_crossover(const std::vector<int>& parent1, const std::vector<in
     child1 = parent1;
     child2 = parent2;
     if (length < 2) return;
+
     std::vector<std::size_t> points(num_points);
     std::uniform_int_distribution<std::size_t> dist(1, length - 1);
     for (int i = 0; i < num_points; ++i) {
@@ -38,6 +40,7 @@ void multi_point_crossover(const std::vector<int>& parent1, const std::vector<in
     }
     std::sort(points.begin(), points.end());
     points.erase(std::unique(points.begin(), points.end()), points.end());
+
     bool swap = false;
     std::size_t pt_idx = 0;
     for (std::size_t i = 0; i < length; ++i) {
@@ -73,6 +76,7 @@ void gaussian_mutation(std::vector<double>& vec, double mutation_rate, double si
         }
     }
 }
+
 }  // namespace GA_Operators
 
 double optimize_hybrid(
@@ -86,6 +90,7 @@ double optimize_hybrid(
     std::size_t continuous_extent = best_continuous_solution.size();
     std::size_t pop_size = params.population_size;
     std::vector<Individual> population(pop_size);
+
     for (std::size_t i = 0; i < pop_size; ++i) {
         population[i].discrete_vector.resize(discrete_extent);
         population[i].continuous_vector.resize(continuous_extent);
@@ -96,10 +101,18 @@ double optimize_hybrid(
             ga_functions.continuous_generator(population[i].continuous_vector, global_rng);
         }
     }
+
     double global_best_fitness = -1e12;
     int patience_counter = 0;
-    std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
+    unsigned int base_seed = std::random_device{}();
+
+    std::ofstream metrics_log("convergence.csv");
+    if (metrics_log.is_open()) {
+        metrics_log << "Generation,CurrentBest,GlobalBest\n";
+    }
+
     for (int iter = 0; iter < params.max_iterations; ++iter) {
+// Parallel evaluation of fitness scores
 #pragma omp parallel for
         for (std::size_t i = 0; i < pop_size; ++i) {
             if (validity_checker(population[i].discrete_vector)) {
@@ -109,6 +122,7 @@ double optimize_hybrid(
                 population[i].fitness = -1e12;
             }
         }
+
         std::size_t best_idx = 0;
         double current_gen_best = -1e12;
         for (std::size_t i = 0; i < pop_size; ++i) {
@@ -117,6 +131,7 @@ double optimize_hybrid(
                 best_idx = i;
             }
         }
+
         if (current_gen_best > global_best_fitness + 1e-6) {
             global_best_fitness = current_gen_best;
             best_discrete_solution = population[best_idx].discrete_vector;
@@ -125,56 +140,95 @@ double optimize_hybrid(
         } else {
             patience_counter++;
         }
+
+        if (metrics_log.is_open()) {
+            metrics_log << iter << "," << current_gen_best << "," << global_best_fitness << "\n";
+        }
+
         if (patience_counter >= params.early_stop_patience) {
             std::cout << "[GA] Early stopping triggered at generation " << iter << "\n";
             break;
         }
+
+        // Adaptive mutation to escape local optima
+        double current_mut_prob = params.mutation_probability;
+        if (patience_counter > params.early_stop_patience / 2) {
+            current_mut_prob = std::min(1.0, current_mut_prob * 2.0);
+        }
+
         std::vector<Individual> next_generation(pop_size);
-        next_generation[0] = population[best_idx];
-        std::size_t child_count = 1;
-        while (child_count < pop_size) {
-            std::size_t p1 =
-                GA_Operators::tournament_selection(population, params.tournament_size, global_rng);
-            std::size_t p2 =
-                GA_Operators::tournament_selection(population, params.tournament_size, global_rng);
-            Individual c1 = population[p1];
-            Individual c2 = population[p2];
-            if (prob_dist(global_rng) < params.crossover_probability) {
-                GA_Operators::multi_point_crossover(population[p1].discrete_vector,
-                                                    population[p2].discrete_vector,
-                                                    c1.discrete_vector, c2.discrete_vector,
-                                                    params.num_crossover_points, global_rng);
-                if (continuous_extent > 0) {
-                    GA_Operators::linear_crossover(
-                        population[p1].continuous_vector, population[p2].continuous_vector,
-                        c1.continuous_vector, c2.continuous_vector, global_rng);
+
+        // Elitism: Sort population indices by fitness
+        std::vector<std::size_t> sorted_indices(pop_size);
+        std::iota(sorted_indices.begin(), sorted_indices.end(), 0);
+        std::sort(sorted_indices.begin(), sorted_indices.end(),
+                  [&population](std::size_t a, std::size_t b) {
+                      return population[a].fitness > population[b].fitness;
+                  });
+
+        // Copy top 'elite_count' individuals directly to the next generation
+        std::size_t actual_elites =
+            std::min(static_cast<std::size_t>(params.elite_count), pop_size);
+        for (std::size_t e = 0; e < actual_elites; ++e) {
+            next_generation[e] = population[sorted_indices[e]];
+        }
+
+// Parallel reproduction with thread-safe localized RNG
+#pragma omp parallel
+        {
+            std::mt19937 local_rng(base_seed + omp_get_thread_num() + iter);
+            std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
+
+#pragma omp for schedule(dynamic)
+            for (std::size_t i = actual_elites; i < pop_size; i += 2) {
+                std::size_t p1 = GA_Operators::tournament_selection(
+                    population, params.tournament_size, local_rng);
+                std::size_t p2 = GA_Operators::tournament_selection(
+                    population, params.tournament_size, local_rng);
+
+                Individual c1 = population[p1];
+                Individual c2 = population[p2];
+
+                if (prob_dist(local_rng) < params.crossover_probability) {
+                    GA_Operators::multi_point_crossover(population[p1].discrete_vector,
+                                                        population[p2].discrete_vector,
+                                                        c1.discrete_vector, c2.discrete_vector,
+                                                        params.num_crossover_points, local_rng);
+                    if (continuous_extent > 0) {
+                        GA_Operators::linear_crossover(
+                            population[p1].continuous_vector, population[p2].continuous_vector,
+                            c1.continuous_vector, c2.continuous_vector, local_rng);
+                    }
                 }
-            }
-            if (prob_dist(global_rng) < params.mutation_probability) {
-                ga_functions.vector_mutator(fixed_prefix, c1.discrete_vector, params.max_mutations,
-                                            global_rng);
-            }
-            if (continuous_extent > 0) {
-                GA_Operators::gaussian_mutation(c1.continuous_vector, params.mutation_probability,
-                                                params.gaussian_sigma, global_rng);
-            }
-            if (validity_checker(c1.discrete_vector) && child_count < pop_size) {
-                next_generation[child_count++] = c1;
-            }
-            if (prob_dist(global_rng) < params.mutation_probability) {
-                ga_functions.vector_mutator(fixed_prefix, c2.discrete_vector, params.max_mutations,
-                                            global_rng);
-            }
-            if (continuous_extent > 0) {
-                GA_Operators::gaussian_mutation(c2.continuous_vector, params.mutation_probability,
-                                                params.gaussian_sigma, global_rng);
-            }
-            if (validity_checker(c2.discrete_vector) && child_count < pop_size) {
-                next_generation[child_count++] = c2;
+
+                // Mutator operator handles probability internally per gene
+                ga_functions.vector_mutator(fixed_prefix, c1.discrete_vector, current_mut_prob,
+                                            local_rng);
+                if (continuous_extent > 0) {
+                    GA_Operators::gaussian_mutation(c1.continuous_vector, current_mut_prob,
+                                                    params.gaussian_sigma, local_rng);
+                }
+
+                ga_functions.vector_mutator(fixed_prefix, c2.discrete_vector, current_mut_prob,
+                                            local_rng);
+                if (continuous_extent > 0) {
+                    GA_Operators::gaussian_mutation(c2.continuous_vector, current_mut_prob,
+                                                    params.gaussian_sigma, local_rng);
+                }
+
+                if (!validity_checker(c1.discrete_vector)) c1 = population[p1];
+                if (!validity_checker(c2.discrete_vector)) c2 = population[p2];
+
+                next_generation[i] = c1;
+                if (i + 1 < pop_size) {
+                    next_generation[i + 1] = c2;
+                }
             }
         }
         population = std::move(next_generation);
     }
+
+    if (metrics_log.is_open()) metrics_log.close();
     return global_best_fitness;
 }
 
@@ -201,24 +255,30 @@ double optimize_continuous(
                                     fixed_discrete_structure.end());
     Algorithm_Parameters modified_params = params;
     modified_params.crossover_probability = 1.0;
+
     auto frozen_generator = [fixed_discrete_structure](std::span<const int> prefix,
                                                        std::span<int> values, std::mt19937& rng) {
         std::copy(fixed_discrete_structure.begin(), fixed_discrete_structure.end(), values.begin());
     };
+
     auto frozen_mutator = [](std::span<const int> prefix, std::span<int> values,
-                             std::size_t max_mutations, std::mt19937& rng) {};
+                             double mutation_rate, std::mt19937& rng) {};
+
     auto frozen_extent = [fixed_discrete_structure](std::span<const int> prefix) {
         return fixed_discrete_structure.size();
     };
+
     Modern_GA_Functions modular_ga_functions;
     modular_ga_functions.vector_generator = frozen_generator;
     modular_ga_functions.vector_mutator = frozen_mutator;
     modular_ga_functions.vector_extent = frozen_extent;
     modular_ga_functions.continuous_generator = ga_functions.continuous_generator;
+
     return optimize_hybrid(fixed_discrete_structure, dummy_discrete, best_continuous_solution,
                            fitness_function, dummy_validity, modular_ga_functions, modified_params);
 }
 
+// Legacy shims
 void default_generator(std::span<const int> const, std::span<int>, RandomNumberGenerator&) {}
 void default_mutator(std::span<const int> const, std::span<int>, std::size_t,
                      RandomNumberGenerator&) {}
