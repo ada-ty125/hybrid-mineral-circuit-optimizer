@@ -295,15 +295,15 @@ double Circuit::evaluate() {
         // Stop if feeds are no longer changing significantly
         if (has_converged()) {
             cuprite::Stream pal_product{
-                final_outputs[0][0],  // pal
-                final_outputs[0][1],  // gor
-                final_outputs[0][2]   // waste
+                final_products[0][0],  // pal
+                final_products[0][1],  // gor
+                final_products[0][2]   // waste
             };
 
             cuprite::Stream gor_product{
-                final_outputs[1][0],  // pal
-                final_outputs[1][1],  // gor
-                final_outputs[1][2]   // waste
+                final_products[1][0],  // pal
+                final_products[1][1],  // gor
+                final_products[1][2]   // waste
             };
 
             int n_A = 0;
