@@ -1,20 +1,21 @@
+#include <iostream>
 #include <cassert>
 #include <cmath>
-#include <iostream>
-
 #include "CUnit.h"
 
 // Simple helper to check if two doubles are effectively equal
-bool is_close(double a, double b, double epsilon = 1e-6) { return std::abs(a - b) < epsilon; }
+bool is_close(double a, double b, double epsilon = 1e-6) {
+    return std::abs(a - b) < epsilon;
+}
 
 void test_type_a_mass_conservation() {
     CUnit unit;
-    unit.n_outputs = 2;  // Type A
-
+    unit.n_outputs = 2; // Type A
+    
     // Set up standard Type A constants manually for testing
-    unit.k_matrix[0][0] = 0.008;   // P
-    unit.k_matrix[0][1] = 0.006;   // G
-    unit.k_matrix[0][2] = 0.0005;  // W
+    unit.k_matrix[0][0] = 0.008; // P
+    unit.k_matrix[0][1] = 0.006; // G
+    unit.k_matrix[0][2] = 0.0005;// W
 
     // Provide a normal incoming feed
     unit.feed[0] = 10.0;
@@ -34,7 +35,7 @@ void test_type_a_mass_conservation() {
 
 int main() {
     std::cout << "CUnit Conservation Tests" << std::endl;
-
+    
     test_type_a_mass_conservation();
     return 0;
 }
