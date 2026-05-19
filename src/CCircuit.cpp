@@ -87,86 +87,31 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
     return true;
 }
 
-bool all_units_reachable_from_feed(const ParsedCircuit& circuit) {
-    std::vector<bool> seen(static_cast<std::size_t>(circuit.num_units), false);
-    std::vector<int> stack{circuit.feed_dest};
-
-    while (!stack.empty()) {
-        const int unit = stack.back();
-        stack.pop_back();
-
-        if (unit < 0 || unit >= circuit.num_units) {
-            continue;
-        }
-
-        const std::size_t unit_index = static_cast<std::size_t>(unit);
-        if (seen[unit_index]) {
-            continue;
-        }
-
-        seen[unit_index] = true;
-        for (const int destination : circuit.outputs[unit_index]) {
-            if (destination >= 0 && destination < circuit.num_units) {
-                stack.push_back(destination);
-            }
-        }
-    }
-
-    return std::all_of(seen.begin(), seen.end(), [](bool value) { return value; });
-}
-
-int count_reachable_products(const ParsedCircuit& circuit, int start_unit) {
-    std::vector<bool> seen_units(static_cast<std::size_t>(circuit.num_units), false);
-    std::vector<bool> seen_products(static_cast<std::size_t>(circuit.num_products), false);
-    std::vector<int> stack{start_unit};
-
-    while (!stack.empty()) {
-        const int unit = stack.back();
-        stack.pop_back();
-
-        if (unit < 0 || unit >= circuit.num_units) {
-            continue;
-        }
-
-        const std::size_t unit_index = static_cast<std::size_t>(unit);
-        if (seen_units[unit_index]) {
-            continue;
-        }
-
-        seen_units[unit_index] = true;
-        for (const int destination : circuit.outputs[unit_index]) {
-            if (destination >= 0 && destination < circuit.num_units) {
-                stack.push_back(destination);
-            } else {
-                const int product_index = destination - circuit.num_units;
-                if (product_index >= 0 && product_index < circuit.num_products) {
-                    seen_products[static_cast<std::size_t>(product_index)] = true;
-                }
-            }
-        }
-    }
-
-    return static_cast<int>(std::count(seen_products.begin(), seen_products.end(), true));
-}
 }  // namespace
 
 bool check_validity(std::span<const int> circuit_vector) {
-    ParsedCircuit circuit;
-    if (!parse_circuit(circuit_vector, circuit)) {
+    Circuit circuit;
+    if (!circuit.initialise(circuit_vector)) {
         return false;
     }
 
-    if (!all_units_reachable_from_feed(circuit)) {
+    const std::vector<bool> reachable_from_feed = circuit.units_reachable_from_feed();
+    if (!std::all_of(reachable_from_feed.begin(), reachable_from_feed.end(),
+                     [](bool value) { return value; })) {
         return false;
     }
 
-    for (int unit = 0; unit < circuit.num_units; ++unit) {
-        if (count_reachable_products(circuit, unit) < 2) {
+    for (int unit = 0; unit < circuit.num_units(); ++unit) {
+        if (circuit.count_reachable_products_from_unit(unit) < 2) {
             return false;
         }
     }
 
     return true;
+}
+
+bool check_validity(const ESE::CSRGraph& graph) {
+    return check_validity(static_cast<const ESE::Graph&>(graph));
 }
 
 bool check_validity(const ESE::Graph& graph) {
@@ -223,13 +168,26 @@ bool Circuit::check_validity(int vector_size, int* circuit_vector, int unit_para
     return check_validity(vector_size, circuit_vector);
 }
 
+Circuit::Circuit() = default;
+
+Circuit::Circuit(int num_units) {
+    if (num_units > 0) {
+        num_units_ = num_units;
+        units.resize(static_cast<std::size_t>(num_units));
+    }
+}
+
 // Constructor using circuit vector
 Circuit::Circuit(std::span<const int> circuit_vector) {
+    num_inputs_ = circuit_vector[0];
+
     // Define the number of units based on the circuit vector
     int num_units = circuit_vector[1];
+    num_units_ = num_units;
 
     // Define the number of products based on the circuit vector
     int num_products = circuit_vector[2];
+    num_products_ = num_products;
 
     // Resize the units vector to hold all units
     units.resize(num_units);
@@ -264,7 +222,7 @@ Circuit::Circuit(std::span<const int> circuit_vector) {
     }
 
     // Read feed destination
-    feed_dest = circuit_vector[pos];
+    feed_dest_ = circuit_vector[pos];
     pos++;
     // Index 3 + num_units + 1 = start of output destinations
 
@@ -278,10 +236,173 @@ Circuit::Circuit(std::span<const int> circuit_vector) {
     }
 }
 
+bool Circuit::initialise(std::span<const int> circuit_vector) {
+    ParsedCircuit parsed;
+    if (!parse_circuit(circuit_vector, parsed)) {
+        return false;
+    }
+
+    num_inputs_ = parsed.num_inputs;
+    num_units_ = parsed.num_units;
+    num_products_ = parsed.num_products;
+    feed_dest_ = parsed.feed_dest;
+
+    units.assign(static_cast<std::size_t>(parsed.num_units), CUnit{});
+    final_products.assign(static_cast<std::size_t>(parsed.num_products), {});
+    final_tailings.fill(0.0);
+
+    for (int unit_id = 0; unit_id < parsed.num_units; ++unit_id) {
+        CUnit& unit = units[static_cast<std::size_t>(unit_id)];
+        unit.n_outputs = static_cast<int>(parsed.outputs[static_cast<std::size_t>(unit_id)].size());
+        set_unit_constants(unit);
+        unit.output = parsed.outputs[static_cast<std::size_t>(unit_id)];
+    }
+
+    return true;
+}
+
+bool Circuit::is_unit_id(int id) const noexcept { return id >= 0 && id < num_units(); }
+
+bool Circuit::is_product_id(int id) const noexcept {
+    return id >= num_units() && id < num_units() + num_products();
+}
+
+int Circuit::product_index(int product_id) const noexcept { return product_id - num_units(); }
+
+std::vector<bool> Circuit::units_reachable_from_feed() const {
+    std::vector<bool> seen(units.size(), false);
+    if (!is_unit_id(feed_dest_)) {
+        return seen;
+    }
+
+    std::vector<int> stack{feed_dest_};
+    while (!stack.empty()) {
+        const int unit_id = stack.back();
+        stack.pop_back();
+
+        if (!is_unit_id(unit_id)) {
+            continue;
+        }
+
+        const std::size_t unit_index = static_cast<std::size_t>(unit_id);
+        if (seen[unit_index]) {
+            continue;
+        }
+
+        seen[unit_index] = true;
+        for (const int destination : units[unit_index].output) {
+            if (is_unit_id(destination)) {
+                stack.push_back(destination);
+            }
+        }
+    }
+
+    return seen;
+}
+
+bool Circuit::can_reach(int start, int target) const {
+    if (!is_unit_id(start)) {
+        return false;
+    }
+
+    std::vector<bool> seen(units.size(), false);
+    std::vector<int> stack{start};
+    while (!stack.empty()) {
+        const int unit_id = stack.back();
+        stack.pop_back();
+
+        if (!is_unit_id(unit_id)) {
+            continue;
+        }
+
+        const std::size_t unit_index = static_cast<std::size_t>(unit_id);
+        if (seen[unit_index]) {
+            continue;
+        }
+
+        seen[unit_index] = true;
+        for (const int destination : units[unit_index].output) {
+            if (destination == target) {
+                return true;
+            }
+            if (is_unit_id(destination)) {
+                stack.push_back(destination);
+            }
+        }
+    }
+
+    return false;
+}
+
+std::vector<bool> Circuit::products_reachable_from_unit(int unit_id) const {
+    std::vector<bool> product_seen(static_cast<std::size_t>(num_products()), false);
+    if (!is_unit_id(unit_id)) {
+        return product_seen;
+    }
+
+    std::vector<bool> seen_units(units.size(), false);
+    std::vector<int> stack{unit_id};
+    while (!stack.empty()) {
+        const int current_unit = stack.back();
+        stack.pop_back();
+
+        if (!is_unit_id(current_unit)) {
+            continue;
+        }
+
+        const std::size_t unit_index = static_cast<std::size_t>(current_unit);
+        if (seen_units[unit_index]) {
+            continue;
+        }
+
+        seen_units[unit_index] = true;
+        for (const int destination : units[unit_index].output) {
+            if (is_product_id(destination)) {
+                product_seen[static_cast<std::size_t>(product_index(destination))] = true;
+            } else if (is_unit_id(destination)) {
+                stack.push_back(destination);
+            }
+        }
+    }
+
+    return product_seen;
+}
+
+int Circuit::count_reachable_products_from_unit(int unit_id) const {
+    const std::vector<bool> reachable_products = products_reachable_from_unit(unit_id);
+    return static_cast<int>(std::count(reachable_products.begin(), reachable_products.end(), true));
+}
+
+int Circuit::num_inputs() const noexcept { return num_inputs_; }
+
+int Circuit::num_units() const noexcept {
+    if (num_units_ > 0) {
+        return num_units_;
+    }
+    return static_cast<int>(units.size());
+}
+
+int Circuit::num_products() const noexcept {
+    if (num_products_ > 0) {
+        return num_products_;
+    }
+    return static_cast<int>(final_products.size());
+}
+
+int Circuit::feed_dest() const noexcept { return feed_dest_; }
+
+const std::vector<int>& Circuit::output_destinations(int unit_id) const {
+    if (!is_unit_id(unit_id)) {
+        return empty_outputs_;
+    }
+    return units[static_cast<std::size_t>(unit_id)].output;
+}
+
 // Helper function to set unit constants based on unit type (Type A or Type B)
 void Circuit::set_unit_constants(CUnit& unit) {
     if (unit.n_outputs == 2) {
         // Type A
+        unit.unit_type = 0;
         unit.k_matrix[0][0] = 0.008;
         unit.k_matrix[0][1] = 0.006;
         unit.k_matrix[0][2] = 0.0005;
@@ -293,6 +414,7 @@ void Circuit::set_unit_constants(CUnit& unit) {
 
     else if (unit.n_outputs == 3) {
         // Type B
+        unit.unit_type = 1;
         unit.k_matrix[0][0] = 0.007;
         unit.k_matrix[0][1] = 0.001;
         unit.k_matrix[0][2] = 0.001;
@@ -345,6 +467,9 @@ void Circuit::save_old_feeds() {
         for (int comp = 0; comp < N_COMPONENTS; comp++) {
             unit.old_feed[comp] = unit.feed[comp];
         }
+        unit.old_feed_P = unit.old_feed[0];
+        unit.old_feed_G = unit.old_feed[1];
+        unit.old_feed_W = unit.old_feed[2];
     }
 }
 
@@ -355,6 +480,9 @@ void Circuit::clear_all_feeds() {
         for (int comp = 0; comp < N_COMPONENTS; comp++) {
             unit.feed[comp] = 0.0;
         }
+        unit.feed_P = 0.0;
+        unit.feed_G = 0.0;
+        unit.feed_W = 0.0;
     }
 }
 
@@ -364,6 +492,9 @@ void Circuit::add_to_unit_feed(int unit_idx, const std::array<double, N_COMPONEN
     for (int comp = 0; comp < N_COMPONENTS; comp++) {
         units[unit_idx].feed[comp] += material[comp];
     }
+    units[unit_idx].feed_P = units[unit_idx].feed[0];
+    units[unit_idx].feed_G = units[unit_idx].feed[1];
+    units[unit_idx].feed_W = units[unit_idx].feed[2];
 }
 
 // Fix data type mismatch for tails (double[N_COMPONENTS]) vs concentrate (vector<array<double,
@@ -375,6 +506,9 @@ void Circuit::add_to_unit_feed(int unit_idx, const double material[N_COMPONENTS]
     for (int comp = 0; comp < N_COMPONENTS; comp++) {
         units[unit_idx].feed[comp] += material[comp];
     }
+    units[unit_idx].feed_P = units[unit_idx].feed[0];
+    units[unit_idx].feed_G = units[unit_idx].feed[1];
+    units[unit_idx].feed_W = units[unit_idx].feed[2];
 }
 
 // Helper function to clear final product and tailings outputs before redistributing new material
@@ -471,9 +605,12 @@ double Circuit::evaluate() {
     constexpr double waste_feed = 80.0;
 
     // Initial feed into the feed destination unit
-    units[feed_dest].feed[0] = palusznium_feed;
-    units[feed_dest].feed[1] = gormanium_feed;
-    units[feed_dest].feed[2] = waste_feed;
+    units[feed_dest_].feed[0] = palusznium_feed;
+    units[feed_dest_].feed[1] = gormanium_feed;
+    units[feed_dest_].feed[2] = waste_feed;
+    units[feed_dest_].feed_P = units[feed_dest_].feed[0];
+    units[feed_dest_].feed_G = units[feed_dest_].feed[1];
+    units[feed_dest_].feed_W = units[feed_dest_].feed[2];
 
     for (int iter = 0; iter < max_iterations; iter++) {
         // Each unit calculates its concentrate and tails outputs
@@ -486,9 +623,12 @@ double Circuit::evaluate() {
         clear_all_feeds();
 
         // Add new external feeds for each component into the feed destination unit
-        units[feed_dest].feed[0] += palusznium_feed;
-        units[feed_dest].feed[1] += gormanium_feed;
-        units[feed_dest].feed[2] += waste_feed;
+        units[feed_dest_].feed[0] += palusznium_feed;
+        units[feed_dest_].feed[1] += gormanium_feed;
+        units[feed_dest_].feed[2] += waste_feed;
+        units[feed_dest_].feed_P = units[feed_dest_].feed[0];
+        units[feed_dest_].feed_G = units[feed_dest_].feed[1];
+        units[feed_dest_].feed_W = units[feed_dest_].feed[2];
 
         // Clear final product and tailings outputs before redistributing new material
         clear_final_outputs();

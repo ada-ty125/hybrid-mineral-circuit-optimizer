@@ -2,6 +2,12 @@
 
 #include <cmath>
 
+CUnit::CUnit() {
+    n_outputs = 2;
+    unit_type = 0;
+    output.resize(2, 0);
+}
+
 /**
  * Resets the current incoming mass feed components to zero.
  */
@@ -9,6 +15,9 @@ void CUnit::clear_feeds() {
     for (int i = 0; i < N_COMPONENTS; i++) {
         feed[i] = 0.0;
     }
+    feed_P = 0.0;
+    feed_G = 0.0;
+    feed_W = 0.0;
 }
 
 /**
@@ -36,7 +45,8 @@ double CUnit::calculate_residence_time() const {
         total_mass_flow = 1e-10;
     }
     double total_vol_flow = total_mass_flow / rho;
-    return (phi * volume) / total_vol_flow;
+    residence_time = (phi * volume) / total_vol_flow;
+    return residence_time;
 }
 
 /**
