@@ -2,6 +2,11 @@
 
 #include <cmath>
 
+void CUnit::clear_feeds(){
+  for (int i = 0; i < N_COMPONENTS; i++){
+    feed[i] = 0.0;
+  }
+}
 double CUnit::total_feed() const {
   double total_feed = 0.0;
   for (int i = 0; i < N_COMPONENTS; i++) {
@@ -29,7 +34,7 @@ double CUnit::calculate_recovery(int st_idx, int component) const {
   }
   double num = k_matrix[st_idx][component] * tau;
 
-  return num / (1 + summation);
+  return num / (1.0 + summation);
 }
 void CUnit::calculate_outputs() {
   int num_c_streams = n_outputs - 1;
