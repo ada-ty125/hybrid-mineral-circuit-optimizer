@@ -6,30 +6,27 @@
 
 using namespace ESE;
 
-int main(int argc, char * argv[])
-{
+int main(int argc, char* argv[]) {
+    (void)argc;
+    (void)argv;
 
-      // dummy vector. Replace in your code with the actual circuit vector.
-      GraphSizes sizes(1, 2, 3);
-      int node_degrees[] = {2, 3};
-      std::span<int> node_degree_span(node_degrees);
-      input_node_id inputs[] = {0, 1, 2, 0, 2, 3};
-      std::span<input_node_id> connectivity_span(inputs);
+    GraphSizes sizes(1, 2, 3);
+    offset_t output_index[] = {1, 3, 6};
+    input_node_id inputs[] = {0, 1, 2, 0, 2, 3};
 
-      CSRGraph graph(sizes, node_degree_span, connectivity_span);
+    CSRGraph graph(sizes, output_index, inputs);
 
-      // Test value based on dummy circuit_performance function.
-      // Replace with actual performance value.
+    const double expected = -187.797;
+    const double tolerance = 1.0e-2;
 
-      std::cout << "circuit_performance(graph) close to 500.0 :\n";
-      double result = circuit_performance(graph);
-      std::cout << "circuit_performance(graph) = "<< result <<"\n";
+    std::cout << "circuit_performance(graph) close to " << expected << ":\n";
+    double result = circuit_performance(graph);
+    std::cout << "circuit_performance(graph) = " << result << "\n";
 
-      if (std::fabs(result - 500.0)<1.0e-8) {
-                  std::cout << "pass\n";
-            } else {
-	        std::cout << "fail\n";
-              return 1;
-           }
-	
+    if (std::fabs(result - expected) < tolerance) {
+        std::cout << "pass\n";
+    } else {
+        std::cout << "fail\n";
+        return 1;
+    }
 }
