@@ -17,24 +17,24 @@ namespace cuprite {
 
 // Mass flows in kg/s for one stream.
 struct Stream {
-  double pal = 0.0;
-  double gor = 0.0;
-  double waste = 0.0;
+    double pal = 0.0;
+    double gor = 0.0;
+    double waste = 0.0;
 };
 
 // Appendix price table, plus £/s to run each unit type.
 struct EconomicConstants {
-  // Palusznium product stream (£/kg of each species in that stream)
-  double pal_in_pal_stream = +120.0;
-  double gor_in_pal_stream = -20.0;
-  double waste_in_pal_stream = -500.0;
-  // Gormanium product stream
-  double pal_in_gor_stream = -5.0;
-  double gor_in_gor_stream = +100.0;
-  double waste_in_gor_stream = -500.0;
-  // Running cost per unit per second
-  double op_cost_type_A_per_s = 10.0;
-  double op_cost_type_B_per_s = 12.0;
+    // Palusznium product stream (£/kg of each species in that stream)
+    double pal_in_pal_stream = +120.0;
+    double gor_in_pal_stream = -20.0;
+    double waste_in_pal_stream = -500.0;
+    // Gormanium product stream
+    double pal_in_gor_stream = -5.0;
+    double gor_in_gor_stream = +100.0;
+    double waste_in_gor_stream = -500.0;
+    // Running cost per unit per second
+    double op_cost_type_A_per_s = 10.0;
+    double op_cost_type_B_per_s = 12.0;
 };
 
 extern const EconomicConstants default_economics;
@@ -42,24 +42,20 @@ extern const EconomicConstants default_economics;
 // How many A/B units are in the circuit. volumes_* are for a future cost
 // model; fixed_op_cost ignores them.
 struct CircuitDescriptor {
-  int n_A = 0;
-  int n_B = 0;
-  std::span<const double> volumes_A{};
-  std::span<const double> volumes_B{};
+    int n_A = 0;
+    int n_B = 0;
+    std::span<const double> volumes_A{};
+    std::span<const double> volumes_B{};
 };
 
 // Function pointer so we can swap running-cost models without a vtable.
-using OpCostFn = double (*)(const CircuitDescriptor&,
-                            const EconomicConstants&);
+using OpCostFn = double (*)(const CircuitDescriptor&, const EconomicConstants&);
 
-double fixed_op_cost(const CircuitDescriptor& circuit,
-                     const EconomicConstants& econ);
+double fixed_op_cost(const CircuitDescriptor& circuit, const EconomicConstants& econ);
 
 // Net GBP/s for a converged run. Only the two product streams matter.
-double economic_value(const Stream& pal_product,
-                      const Stream& gor_product,
-                      const CircuitDescriptor& circuit,
-                      OpCostFn op_cost = &fixed_op_cost,
+double economic_value(const Stream& pal_product, const Stream& gor_product,
+                      const CircuitDescriptor& circuit, OpCostFn op_cost = &fixed_op_cost,
                       const EconomicConstants& econ = default_economics);
 
 // Solver did not converge: waste in feed × waste penalty (-40000 at base feed).
