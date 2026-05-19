@@ -111,7 +111,92 @@ bool check_validity(std::span<const int> circuit_vector) {
 }
 
 bool check_validity(const ESE::CSRGraph& graph) {
-    return check_validity(static_cast<const ESE::Graph&>(graph));
+    // -------------------------------------------------------------------------
+    // STEP 1: Ultra-fast local checks from the graph representation.
+    // These are the original graph-side validity checks from Validity_Checker.
+    // -------------------------------------------------------------------------
+    int num_units = static_cast<int>(graph.n_dynamic_nodes);
+    if (num_units <= 0) {
+        return false;
+    }
+
+    for (int i = 0; i < num_units; ++i) {
+        int n_outputs = static_cast<int>(graph.get_degree(static_cast<std::size_t>(i)));
+        if (n_outputs != 2 && n_outputs != 3) {
+            return false;
+        }
+
+        int first_dest = static_cast<int>(graph.node_targets(i, 0));
+        bool all_outputs_identical = true;
+
+        for (int j = 0; j < n_outputs; ++j) {
+            int dest = static_cast<int>(graph.node_targets(i, static_cast<std::size_t>(j)));
+
+            // Condition 3: self-recycle is strictly prohibited.
+            if (dest == i) {
+                return false;
+            }
+
+            if (dest != first_dest) {
+                all_outputs_identical = false;
+            }
+        }
+
+        // Condition 4: outputs from one unit must not all merge into the same node.
+        if (n_outputs > 1 && all_outputs_identical) {
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // STEP 2: Build a Circuit view so the shared reachability helpers are used.
+    // -------------------------------------------------------------------------
+    Circuit circuit(num_units);
+
+    int feed_destination = 0;
+    if (graph.input_index != nullptr && graph.n_root_nodes > 0) {
+        feed_destination = static_cast<int>(graph.input_index[0]);
+    } else {
+        return false;
+    }
+
+    circuit.num_inputs_ = static_cast<int>(graph.n_root_nodes);
+    circuit.num_units_ = num_units;
+    circuit.num_products_ = static_cast<int>(graph.n_sink_nodes);
+    circuit.feed_dest_ = feed_destination;
+
+    for (int i = 0; i < num_units; ++i) {
+        CUnit& unit = circuit.units[static_cast<std::size_t>(i)];
+        unit.n_outputs = static_cast<int>(graph.get_degree(static_cast<std::size_t>(i)));
+        unit.unit_type = unit.n_outputs == 2 ? 0 : 1;
+        unit.output.resize(static_cast<std::size_t>(unit.n_outputs));
+
+        for (int j = 0; j < unit.n_outputs; ++j) {
+            unit.output[static_cast<std::size_t>(j)] =
+                static_cast<int>(graph.node_targets(i, static_cast<std::size_t>(j)));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // STEP 3: Condition 1, every unit must be accessible from the feed.
+    // -------------------------------------------------------------------------
+    std::vector<bool> reachable_from_feed = circuit.units_reachable_from_feed();
+    for (int i = 0; i < num_units; ++i) {
+        if (!reachable_from_feed[static_cast<std::size_t>(i)]) {
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // STEP 4: Condition 2, every unit must reach at least two product streams.
+    // -------------------------------------------------------------------------
+    for (int i = 0; i < num_units; ++i) {
+        if (circuit.count_reachable_products_from_unit(i) < 2) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool check_validity(const ESE::Graph& graph) {
