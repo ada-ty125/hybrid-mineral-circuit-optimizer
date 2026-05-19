@@ -199,14 +199,13 @@ void Circuit::distribute_outputs() {
             if (dest >= 0 && dest < static_cast<int>(units.size())) {
                 add_to_unit_feed(dest, unit.concentrate[out]);
             } else {
-            int product_idx = dest - static_cast<int>(units.size());
+                int product_idx = dest - static_cast<int>(units.size());
 
-            if (product_idx >= 0 &&
-                product_idx < static_cast<int>(final_products.size())) {
-                for (int comp = 0; comp < N_COMPONENTS; comp++) {
-                    final_products[product_idx][comp] += unit.concentrate[out][comp];
+                if (product_idx >= 0 && product_idx < static_cast<int>(final_products.size())) {
+                    for (int comp = 0; comp < N_COMPONENTS; comp++) {
+                        final_products[product_idx][comp] += unit.concentrate[out][comp];
                     }
-                }    
+                }
             }
         }
 
@@ -216,11 +215,11 @@ void Circuit::distribute_outputs() {
         if (tails_dest >= 0 && tails_dest < static_cast<int>(units.size())) {
             add_to_unit_feed(tails_dest, unit.tails);
         } else {
-        for (int comp = 0; comp < N_COMPONENTS; comp++) {
-            final_tailings[comp] += unit.tails[comp];
+            for (int comp = 0; comp < N_COMPONENTS; comp++) {
+                final_tailings[comp] += unit.tails[comp];
             }
         }
-    }    
+    }
 }
 
 // Checks whether the iterative simulation has converged
