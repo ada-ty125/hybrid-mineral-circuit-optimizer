@@ -16,8 +16,18 @@ set_target_properties( geneticAlgorithm
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
 )
 
+# Economics on its own so test_economics builds without waiting on CUnit fixes.
+
+add_library(circuitEconomics Economics.cpp)
+set_target_properties( circuitEconomics
+    PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+)
+
 # build the circuit simulator as a testable library
+
 add_library(circuitSimulator CUnit.cpp CCircuit.cpp CSimulator.cpp Visualization.cpp)
+target_link_libraries(circuitSimulator PUBLIC circuitEconomics)
 set_target_properties( circuitSimulator
     PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
