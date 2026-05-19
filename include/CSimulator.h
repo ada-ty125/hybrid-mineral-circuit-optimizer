@@ -16,6 +16,6 @@ struct Simulator_Parameters{
 
 extern Simulator_Parameters default_simulator_parameters;
 
-double circuit_performance(const Graph& graph,
+double circuit_performance(const ESE::Graph& graph,
         struct Simulator_Parameters simulator_parameters);
 
