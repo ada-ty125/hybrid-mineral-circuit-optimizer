@@ -607,6 +607,31 @@ void Circuit::clear_final_outputs() {
 
 // Send every unit's outputs to the correct destination
 void Circuit::distribute_outputs() {
+    auto route_material = [this](int dest, const auto& material) {
+        if (dest >= 0 && dest < static_cast<int>(units.size())) {
+            add_to_unit_feed(dest, material);
+            return;
+        }
+
+        const int product_idx = dest - static_cast<int>(units.size());
+        if (product_idx < 0 || product_idx >= num_products()) {
+            return;
+        }
+
+        // Product IDs are fixed by the circuit vector format. The last product
+        // is final tailings; the earlier products are priced concentrates.
+        if (product_idx == num_products() - 1) {
+            for (int comp = 0; comp < N_COMPONENTS; comp++) {
+                final_tailings[comp] += material[comp];
+            }
+            return;
+        }
+
+        for (int comp = 0; comp < N_COMPONENTS; comp++) {
+            final_products[static_cast<std::size_t>(product_idx)][comp] += material[comp];
+        }
+    };
+
     for (int u = 0; u < static_cast<int>(units.size()); u++) {
         // Define the current unit being processed
         CUnit& unit = units[u];
@@ -619,30 +644,12 @@ void Circuit::distribute_outputs() {
         // Route concentrate streams to their destinations
         for (int out = 0; out < num_c_streams; out++) {
             int dest = unit.output[out];
-
-            if (dest >= 0 && dest < static_cast<int>(units.size())) {
-                add_to_unit_feed(dest, unit.concentrate[out]);
-            } else {
-                int product_idx = dest - static_cast<int>(units.size());
-
-                if (product_idx >= 0 && product_idx < static_cast<int>(final_products.size())) {
-                    for (int comp = 0; comp < N_COMPONENTS; comp++) {
-                        final_products[product_idx][comp] += unit.concentrate[out][comp];
-                    }
-                }
-            }
+            route_material(dest, unit.concentrate[out]);
         }
 
         // The last output is always tails
         int tails_dest = unit.output[unit.n_outputs - 1];
-
-        if (tails_dest >= 0 && tails_dest < static_cast<int>(units.size())) {
-            add_to_unit_feed(tails_dest, unit.tails);
-        } else {
-            for (int comp = 0; comp < N_COMPONENTS; comp++) {
-                final_tailings[comp] += unit.tails[comp];
-            }
-        }
+        route_material(tails_dest, unit.tails);
     }
 }
 
