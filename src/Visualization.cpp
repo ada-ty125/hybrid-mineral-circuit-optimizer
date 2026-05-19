@@ -1,3 +1,12 @@
+/**
+ * @file Visualization.cpp
+ * @brief Graphviz DOT visualisation utilities for circuit vectors and ESE graphs.
+ *
+ * This file contains the post-processing visualisation implementation used to
+ * inspect candidate separation circuits. It writes DOT text files that can be
+ * rendered by Graphviz into images for reports, debugging, and manual review.
+ */
+
 #include "CSRGraph.h"
 #include "RequiredFunctions.h"
 
@@ -9,6 +18,16 @@
 
 namespace {
 
+/**
+ * @brief Write a minimal DOT graph that reports why visualisation failed.
+ *
+ * This helper is used for malformed circuit vectors. Emitting a DOT file even
+ * on invalid input keeps the visualisation step inspectable and avoids silent
+ * failures in post-processing workflows.
+ *
+ * @param output Open output stream for the DOT file.
+ * @param message Human-readable validation error to display in the graph.
+ */
 void write_error_dot(std::ofstream& output, const std::string& message) {
     output << "digraph circuit {\n";
     output << "  graph [rankdir=LR];\n";
@@ -16,8 +35,27 @@ void write_error_dot(std::ofstream& output, const std::string& message) {
     output << "}\n";
 }
 
+/**
+ * @brief Return the DOT node identifier used for a circuit processing unit.
+ *
+ * @param node_id Zero-based processing unit index.
+ * @return Stable DOT identifier in the form `unit_<id>`.
+ */
 std::string circuit_node_name(std::size_t node_id) { return "unit_" + std::to_string(node_id); }
 
+/**
+ * @brief Map a circuit-vector destination value to a DOT node identifier.
+ *
+ * Circuit vectors encode unit destinations as integer indices. Values below
+ * `num_units` target another processing unit. The three values starting at
+ * `num_units` represent the Palusznium, Gormanium, and tailings product sinks.
+ * Any out-of-range destination is converted to an `invalid_*` node name so the
+ * generated graph still exposes the problematic edge.
+ *
+ * @param destination Encoded circuit-vector destination.
+ * @param num_units Number of processing units in the circuit.
+ * @return DOT node identifier for the target node.
+ */
 std::string circuit_target_name(int destination, std::size_t num_units) {
     if (destination < 0) {
         return "invalid_" + std::to_string(-destination);
@@ -39,6 +77,16 @@ std::string circuit_target_name(int destination, std::size_t num_units) {
     return "invalid_" + std::to_string(dest);
 }
 
+/**
+ * @brief Return a human-readable edge label for a unit output stream.
+ *
+ * Type A units have two outputs: concentrate and tailings. Type B units have
+ * three outputs: Palusznium concentrate, Gormanium concentrate, and tailings.
+ *
+ * @param output_count Number of outputs for the source unit.
+ * @param output_index Zero-based output index on that unit.
+ * @return Label to attach to the DOT edge.
+ */
 std::string output_label(std::size_t output_count, std::size_t output_index) {
     if (output_count == 2) {
         return output_index == 0 ? "concentrate" : "tailings";
@@ -55,6 +103,16 @@ std::string output_label(std::size_t output_count, std::size_t output_index) {
     return "output " + std::to_string(output_index);
 }
 
+/**
+ * @brief Return the display colour for an output stream edge.
+ *
+ * The colour scheme mirrors the stream semantics: Palusznium-rich streams use
+ * gold, Gormanium-rich streams use blue, and tailings use grey.
+ *
+ * @param output_count Number of outputs for the source unit.
+ * @param output_index Zero-based output index on that unit.
+ * @return Graphviz colour name for the DOT edge.
+ */
 std::string edge_color(std::size_t output_count, std::size_t output_index) {
     if (output_count == 2) {
         return output_index == 0 ? "goldenrod" : "gray45";
@@ -71,6 +129,15 @@ std::string edge_color(std::size_t output_count, std::size_t output_index) {
     return "black";
 }
 
+/**
+ * @brief Convert an ESE graph output node id to a DOT node identifier.
+ *
+ * In the ESE graph representation, root/input nodes are encoded as negative
+ * ids, while dynamic processing units use non-negative ids.
+ *
+ * @param output_node ESE graph node id.
+ * @return DOT node identifier for a root or processing unit.
+ */
 std::string graph_output_node_name(ESE::node_id output_node) {
     if (output_node < 0) {
         return "root_" + std::to_string(-output_node);
@@ -78,6 +145,16 @@ std::string graph_output_node_name(ESE::node_id output_node) {
     return "unit_" + std::to_string(output_node);
 }
 
+/**
+ * @brief Convert an ESE graph target id to a DOT node identifier.
+ *
+ * Targets below `num_units` refer to dynamic processing units. Targets at or
+ * above `num_units` refer to sink nodes, offset by the number of units.
+ *
+ * @param target ESE graph input target id.
+ * @param num_units Number of dynamic processing units in the graph.
+ * @return DOT node identifier for a unit, sink, or unfilled target.
+ */
 std::string graph_target_node_name(ESE::input_node_id target, std::size_t num_units) {
     if (target == ESE::UNFILLED_INPUT) {
         return "unfilled";
@@ -90,6 +167,24 @@ std::string graph_target_node_name(ESE::input_node_id target, std::size_t num_un
 
 }  // namespace
 
+/**
+ * @brief Write a Graphviz DOT visualisation for an encoded circuit vector.
+ *
+ * The expected vector layout is:
+ * `[num_inputs, num_units, num_products, unit_output_counts..., feed_dest,
+ * unit_output_destinations...]`.
+ *
+ * This implementation supports the project circuit convention of one feed
+ * stream and three product streams. Unit output counts must be either two
+ * (Type A) or three (Type B). The generated DOT file distinguishes feed,
+ * processing units, product sinks, stream types, and self-recycle edges.
+ *
+ * If the vector is malformed, the function writes an error DOT graph instead
+ * of throwing. File-open failures are reported to stderr and produce no output.
+ *
+ * @param values Circuit vector to visualise.
+ * @param filename Path to the DOT file to write.
+ */
 void plot_span(std::span<const int> const values, const char* filename) {
     std::ofstream output(filename);
     if (!output) {
@@ -185,6 +280,19 @@ void plot_span(std::span<const int> const values, const char* filename) {
     output << "}\n";
 }
 
+/**
+ * @brief Write a Graphviz DOT visualisation for an ESE graph.
+ *
+ * Root nodes are drawn as feed inputs, dynamic nodes as processing units, and
+ * sink nodes as outputs. Edges follow the target structure exposed by the ESE
+ * graph API. This function is useful after converting a circuit vector into
+ * the graph representation used by validity checking and simulation.
+ *
+ * File-open failures are reported to stderr and produce no output.
+ *
+ * @param graph ESE graph to visualise.
+ * @param filename Path to the DOT file to write.
+ */
 void plot_graph(const Graph& graph, const char* filename) {
     std::ofstream output(filename);
     if (!output) {
