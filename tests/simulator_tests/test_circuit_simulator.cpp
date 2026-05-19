@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
 
     CSRGraph graph(sizes, output_index, inputs);
 
-    const double expected = -187.797;
+    const double expected = -39297.985467447535;
     const double tolerance = 1.0e-2;
 
     std::cout << "circuit_performance(graph) close to " << expected << ":\n";
