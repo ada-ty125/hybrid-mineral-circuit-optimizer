@@ -10,10 +10,12 @@
 
 #include "RequiredFunctions.h"
 #include "CUnit.h"
-#include "CSRGraph.h" // Needed for the global check_validity interface
+#include "CSRGraph.h"  // Needed for the global check_validity interface
 
 // Forward declaration of the global validation function to ensure friendship binds correctly
-namespace ESE { class CSRGraph; }
+namespace ESE {
+class CSRGraph;
+}
 bool check_validity(const ESE::CSRGraph& graph);
 
 class Circuit {
@@ -37,11 +39,11 @@ class Circuit {
     int feed_dest() const noexcept;
     const std::vector<int>& output_destinations(int unit_id) const;
 
-    static bool check_validity(int vector_size, int *);
-    static bool check_validity(int vector_size, int *,
-                               int unit_parameters_size, double *unit_parameters);
+    static bool check_validity(int vector_size, int*);
+    static bool check_validity(int vector_sßize, int*, int unit_parameters_size,
+                               double* unit_parameters);
 
-    // Give friendship to the high-performance check_validity function 
+    // Give friendship to the high-performance check_validity function
     // so it can seamlessly populate structural boundary fields (STEP 2 optimization)
     friend bool check_validity(const ESE::CSRGraph& graph);
 
