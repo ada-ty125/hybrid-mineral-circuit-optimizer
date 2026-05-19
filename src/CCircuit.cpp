@@ -11,7 +11,7 @@
 #include "CCircuit.h"
 #include "Economics.h"
 
-bool check_validity(const CSRGraph& graph) {
+bool check_validity(std::span<const int> circuit_vector) {
     // This is function that checks if the graph is valid
 
     // Current dummy version just returns true.
