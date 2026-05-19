@@ -1,4 +1,6 @@
 #include <vector>
+#include <array>
+#include <span>
 #include <stdio.h>
 #include <algorithm>
 #include <cmath>
@@ -20,6 +22,14 @@ bool check_validity(const CSRGraph& graph) {
 Circuit::Circuit(std::span<const int> circuit_vector) {
     // Define the number of units based on the circuit vector
     int num_units = circuit_vector[1];
+
+    // Define the number of products based on the circuit vector
+    int num_products = circuit_vector[2];
+
+    // Resize the units vector to hold all units
+    units.resize(num_units);
+    final_products.resize(num_products);
+    final_tailings.fill(0.0);
 
     // Resize the units vector to hold all units
     units.resize(num_units);
@@ -162,6 +172,15 @@ void Circuit::add_to_unit_feed(int unit_idx, const double material[N_COMPONENTS]
     }
 }
 
+// Helper function to clear final product and tailings outputs before redistributing new material
+void Circuit::clear_final_outputs() {
+    for (auto& product : final_products) {
+        product.fill(0.0);
+    }
+
+    final_tailings.fill(0.0);
+}
+
 // Send every unit's outputs to the correct destination
 void Circuit::distribute_outputs() {
     for (int u = 0; u < static_cast<int>(units.size()); u++) {
@@ -175,15 +194,19 @@ void Circuit::distribute_outputs() {
 
         // Route concentrate streams to their destinations
         for (int out = 0; out < num_c_streams; out++) {
-            // Destination of this concentrate stream
             int dest = unit.output[out];
 
             if (dest >= 0 && dest < static_cast<int>(units.size())) {
-                // Destination is another unit -> add this concentrate stream to that unit's feed
                 add_to_unit_feed(dest, unit.concentrate[out]);
             } else {
-                // Destination is a final product stream
-                // Add final product storage later
+            int product_idx = dest - static_cast<int>(units.size());
+
+            if (product_idx >= 0 &&
+                product_idx < static_cast<int>(final_products.size())) {
+                for (int comp = 0; comp < N_COMPONENTS; comp++) {
+                    final_products[product_idx][comp] += unit.concentrate[out][comp];
+                    }
+                }    
             }
         }
 
@@ -191,13 +214,13 @@ void Circuit::distribute_outputs() {
         int tails_dest = unit.output[unit.n_outputs - 1];
 
         if (tails_dest >= 0 && tails_dest < static_cast<int>(units.size())) {
-            // Tails goes to another unit -> add tails to that unit's feed
             add_to_unit_feed(tails_dest, unit.tails);
         } else {
-            // Tails goes to final tailings stream
-            // Add final tailings storage later
+        for (int comp = 0; comp < N_COMPONENTS; comp++) {
+            final_tailings[comp] += unit.tails[comp];
+            }
         }
-    }
+    }    
 }
 
 // Checks whether the iterative simulation has converged
@@ -262,6 +285,9 @@ double Circuit::evaluate() {
         units[feed_dest].feed[0] += palusznium_feed;
         units[feed_dest].feed[1] += gormanium_feed;
         units[feed_dest].feed[2] += waste_feed;
+
+        // Clear final product and tailings outputs before redistributing new material
+        clear_final_outputs();
 
         // Send all unit outputs to their destinations
         distribute_outputs();
