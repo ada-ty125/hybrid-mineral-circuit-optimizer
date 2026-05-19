@@ -45,7 +45,7 @@ git clone --recursive <repository_url>
 To update the ESEGraph library to the latest version (if you are told to), you can use the following commands in your terminal:
 
 ```bash
-git submodule update --remote 
+git submodule update --remote
 ```
 
 If your group discovers a bug in the ESEGraph library, you can report it by opening an issue on the ESEGraph GitHub repository. If you have a fix for the bug, you can fork the ESEGraph repository, make your changes, and then submit a pull request to the original repository.

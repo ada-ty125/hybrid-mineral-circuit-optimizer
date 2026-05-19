@@ -70,8 +70,8 @@ For the base project:
 
 - `num_inputs` is `1`.
 - `num_products` is `3`.
-- `unit_outputs == 2` means type A.
-- `unit_outputs == 3` means type B.
+- Each `unit_outputs[i] == 2` means unit `i` is type A.
+- Each `unit_outputs[i] == 3` means unit `i` is type B.
 - Unit destination IDs are `0` to `num_units - 1`.
 - Product destination IDs are:
   - `num_units`: palusznium concentrate stream.
@@ -85,7 +85,8 @@ The vector length must be:
 3 + num_units + 1 + sum(unit_outputs)
 ```
 
-The fixed 10-unit base case should use:
+The fixed 10-unit base case must have 7 type A units and 3 type B units, with
+any ordering. For example:
 
 ```text
 num_units = 10
@@ -96,7 +97,7 @@ The swappable 8-unit case should use:
 
 ```text
 num_units = 8
-unit_outputs[i] in {2, 3}
+each unit_outputs[i] is either 2 or 3, chosen by the genetic algorithm
 ```
 
 ## Validity Standard
@@ -106,14 +107,16 @@ run the full mass-balance simulation.
 
 A circuit is invalid if any of the following are true:
 
-- The vector length does not match the declared unit outputs.
+- The vector length is not exactly `3 + num_units + 1 + sum(unit_outputs)`.
 - Any unit output count is not `2` or `3`.
-- `feed_dest` is outside `0..num_units-1`.
-- Any stream destination is outside `0..num_units+2`.
+- `feed_dest` is not in the inclusive range `[0, num_units - 1]`.
+- Any stream destination is not in the inclusive range `[0, num_units + 2]`.
 - Any unit sends an output stream directly to itself.
 - All output streams from one unit have the same destination.
 - At least one unit is not reachable from the feed.
-- At least one unit cannot reach at least two final product streams.
+- At least one unit cannot reach at least two of the outlet streams,
+  where the outlets are the palusznium concentrate, the gormanium concentrate,
+  and the final tailings (`num_units`, `num_units + 1`, `num_units + 2`).
 
 The simulator must still detect non-convergence, because validity checks may
 not catch every pathological circuit.
@@ -139,17 +142,23 @@ Use successive substitution for mass-balance convergence:
 
 - Default tolerance: `1e-6`.
 - Default maximum iterations: at least `1000`, adjustable through parameters.
-- Apply a minimum flow-rate guard to avoid overflow in residence-time
-  calculations.
-- If the circuit fails to converge, return a clearly poor fitness value and
-  record the failure in diagnostics when possible.
+- Apply a minimum volumetric flow-rate of `1e-10 m^3/s` to avoid overflow in
+  residence-time calculations, as suggested by the project PDF.
+- If the circuit fails to converge, return the worst-case fitness suggested by
+  the project PDF, which is the waste feed rate multiplied by the per-kg waste
+  penalty in a concentrate stream, and record the failure in diagnostics when
+  possible.
 
-The returned performance must include:
+The returned performance is the net revenue per second, computed from the
+per-kg rates given in the project PDF appendix. It must include:
 
-- Value of palusznium product stream.
-- Value of gormanium product stream.
-- Penalties for misplaced valuable material and waste.
-- Operating costs for all units.
+- For each kg/s in the palusznium concentrate stream: a positive payment for
+  palusznium and a negative penalty for gormanium and for waste.
+- For each kg/s in the gormanium concentrate stream: a positive payment for
+  gormanium and a negative penalty for palusznium and for waste.
+- The final tailings stream is discarded at no cost or revenue.
+- A subtracted operating cost of `10 GBP/s` per type A unit and `12 GBP/s` per
+  type B unit.
 
 ## Genetic Algorithm Standard
 
@@ -185,7 +194,9 @@ population_size = 200
 max_generations = 1000
 crossover_probability = 0.9
 mutation_probability = 0.01
+max_mutations_per_child = team-chosen, tune with sensitivity runs
 stagnation_limit = 100
+random_seed = team-chosen, but recorded with every run
 ```
 
 These are starting points only. Final results must include parameter
