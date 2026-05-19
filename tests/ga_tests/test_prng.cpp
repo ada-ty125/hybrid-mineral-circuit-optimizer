@@ -1,7 +1,8 @@
 #include "PRNG.h"
+#include <iostream>
 
 int main() {
-    DefaultRandomNumberGenerator rng(12345); // Seed with a fixed value for reproducibility
+    DefaultRandomNumberGenerator rng(12345);  // Seed with a fixed value for reproducibility
 
     // Test integer random generation
     for (int i = 0; i < 10; ++i) {
