@@ -25,6 +25,7 @@ class Circuit {
                                double* unit_parameters);
 
     double evaluate();
+    
 
   private:
     int feed_dest = 0;
@@ -37,6 +38,11 @@ class Circuit {
     void clear_all_feeds();
     void add_to_unit_feed(int unit_idx, const std::array<double, N_COMPONENTS>& material);
     void add_to_unit_feed(int unit_idx, const double material[N_COMPONENTS]);
+    void clear_final_outputs();
     void distribute_outputs();
     bool has_converged() const;
+
+
+    std::vector<std::array<double, N_COMPONENTS>> final_products;
+    std::array<double, N_COMPONENTS> final_tailings{};
 };
