@@ -295,15 +295,15 @@ double Circuit::evaluate() {
         // Stop if feeds are no longer changing significantly
         if (has_converged()) {
             cuprite::Stream pal_product{
-                final_outputs[0][0], // pal
-                final_outputs[0][1], // gor
-                final_outputs[0][2]  // waste
+                final_outputs[0][0],  // pal
+                final_outputs[0][1],  // gor
+                final_outputs[0][2]   // waste
             };
 
             cuprite::Stream gor_product{
-                final_outputs[1][0], // pal
-                final_outputs[1][1], // gor
-                final_outputs[1][2]  // waste
+                final_outputs[1][0],  // pal
+                final_outputs[1][1],  // gor
+                final_outputs[1][2]   // waste
             };
 
             int n_A = 0;
@@ -317,13 +317,8 @@ double Circuit::evaluate() {
             }
             cuprite::CircuitDescriptor descriptor{n_A, n_B};
 
-            return cuprite::economic_value(
-                pal_product,
-                gor_product,
-                descriptor,
-                cuprite::fixed_op_cost,
-                cuprite::default_economics
-            );
+            return cuprite::economic_value(pal_product, gor_product, descriptor,
+                                           cuprite::fixed_op_cost, cuprite::default_economics);
         }
     }
 

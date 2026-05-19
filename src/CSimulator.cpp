@@ -12,9 +12,9 @@ double circuit_performance(const ESE::Graph& graph) {
 
     // 2. Reconstruct the flat vector matching CCircuit constructor layout exactly
     std::vector<int> circuit_vec;
-    circuit_vec.push_back(1);                     // Index 0: num_inputs
-    circuit_vec.push_back(num_units);             // Index 1: num_units
-    circuit_vec.push_back(csr_graph.n_sink_nodes); // Index 2: num_products
+    circuit_vec.push_back(1);                       // Index 0: num_inputs
+    circuit_vec.push_back(num_units);               // Index 1: num_units
+    circuit_vec.push_back(csr_graph.n_sink_nodes);  // Index 2: num_products
 
     // Step A: Append output counts for every unit
     for (int i = 0; i < num_units; i++) {
@@ -24,13 +24,13 @@ double circuit_performance(const ESE::Graph& graph) {
 
     // Step B: Resolve the TRUE feed destination from the graph structure
     // Instead of assuming 0, look up where the network feed actually enters
-    int true_feed_destination = 0; 
+    int true_feed_destination = 0;
     if (num_units > 0) {
-        // In the ESE Graph convention, the circuit feed source is often treated 
+        // In the ESE Graph convention, the circuit feed source is often treated
         // as entering the node mapped to the graph's starting entry criteria.
         // If your framework defines an explicit feed lookup, use it here;
         // otherwise, defaulting to 0 is safe as long as the GA strictly enforces it.
-        true_feed_destination = 0; 
+        true_feed_destination = 0;
     }
     circuit_vec.push_back(true_feed_destination);
 
