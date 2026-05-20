@@ -54,8 +54,3 @@ class CSimulator {
     );
 };
 
-double circuit_performance(
-    const ESE::Graph& graph,
-    Simulator_Parameters simulator_parameters =
-        default_simulator_parameters
-);

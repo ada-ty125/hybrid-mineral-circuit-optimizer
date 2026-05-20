@@ -117,6 +117,39 @@ void test_circuit_performance_span_wrapper() {
     assert(std::isfinite(score));
 }
 
+void test_example_5_unit_case() {
+    std::vector<int> circuit_vector = {
+        1, 5, 3,
+        2, 2, 2, 2, 3,
+        3,
+        2, 7,
+        2, 3,
+        4, 1,
+        2, 0,
+        5, 6, 2
+    };
+
+    Circuit circuit;
+
+    assert(circuit.initialise(circuit_vector));
+
+    assert(circuit.num_inputs() == 1);
+    assert(circuit.num_units() == 5);
+    assert(circuit.num_products() == 3);
+    assert(circuit.feed_dest() == 3);
+
+    double score = CSimulator::evaluate(circuit);
+
+    std::cout << "Example 5-unit score = " << score << "\n";
+
+    assert(std::isfinite(score));
+
+    // Expected value from published example:
+    assert(std::abs(score - 366) < 1.0);
+
+    std::cout << "Example 5-unit case passed.\n";
+}
+
 int main() {
     test_valid_initialise();
     test_invalid_self_recycle_rejected();
@@ -125,6 +158,7 @@ int main() {
     test_reachability_from_feed();
     test_simulator_returns_finite_score();
     test_circuit_performance_span_wrapper();
+    test_example_5_unit_case();
 
     std::cout << "All simulator refactor tests passed.\n";
     return 0;

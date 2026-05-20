@@ -10,6 +10,12 @@
 #include <vector>
 #include <span>
 
+
+Simulator_Parameters default_simulator_parameters{
+    1e-6,
+    10000
+};
+
 void CSimulator::calculate_all_outputs(Circuit& circuit) {
     for (auto& unit : circuit.units) {
         unit.calculate_outputs();
@@ -208,56 +214,48 @@ double CSimulator::evaluate(Circuit& circuit, const Simulator_Parameters& simula
     return cuprite::worst_case_value(waste_feed, cuprite::default_economics);
 }
 
+
 double circuit_performance(const ESE::Graph& graph) {
-
-    const ESE::CSRGraph& csr_graph =
-        static_cast<const ESE::CSRGraph&>(graph);
-
-    int num_units = csr_graph.n_dynamic_nodes;
+    const ESE::CSRGraph& csr_graph = static_cast<const ESE::CSRGraph&>(graph);
+    int num_units = static_cast<int>(csr_graph.n_dynamic_nodes);
 
     std::vector<int> circuit_vec;
-
     circuit_vec.push_back(1);
     circuit_vec.push_back(num_units);
-    circuit_vec.push_back(csr_graph.n_sink_nodes);
+    circuit_vec.push_back(static_cast<int>(csr_graph.n_sink_nodes));
 
     for (int i = 0; i < num_units; i++) {
-        int out_edges =
-            csr_graph.output_index[i + 1] -
-            csr_graph.output_index[i];
-
+        int out_edges = csr_graph.output_index[i + 1] - csr_graph.output_index[i];
         circuit_vec.push_back(out_edges);
     }
 
     int true_feed_destination = 0;
-
     circuit_vec.push_back(true_feed_destination);
 
     for (int i = 0; i < num_units; i++) {
-
-        int out_edges =
-            csr_graph.output_index[i + 1] -
-            csr_graph.output_index[i];
+        int out_edges = csr_graph.output_index[i + 1] - csr_graph.output_index[i];
 
         for (int j = 0; j < out_edges; j++) {
-
-            int edge_idx =
-                csr_graph.output_index[i] + j;
-
-            circuit_vec.push_back(
-                csr_graph.input_index[edge_idx]
-            );
+            int edge_idx = csr_graph.output_index[i] + j;
+            circuit_vec.push_back(csr_graph.input_index[edge_idx]);
         }
     }
 
     Circuit circuit;
 
-    return CSimulator::evaluate(circuit, simulator_parameters);
+    if (!circuit.initialise(circuit_vec)) {
+        return cuprite::worst_case_value(80.0, cuprite::default_economics);
+    }
+
+    return CSimulator::evaluate(circuit, default_simulator_parameters);
 }
 
-double circuit_performance(
-    std::span<const int> const circuit_span) {
-    Circuit circuit(circuit_span);
+double circuit_performance(std::span<const int> const circuit_span) {
+    Circuit circuit;
 
-    return CSimulator::evaluate(circuit, simulator_parameters);
+    if (!circuit.initialise(circuit_span)) {
+        return cuprite::worst_case_value(80.0, cuprite::default_economics);
+    }
+
+    return CSimulator::evaluate(circuit, default_simulator_parameters);
 }
