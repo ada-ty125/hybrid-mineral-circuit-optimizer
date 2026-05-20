@@ -3,7 +3,7 @@
 #include <cmath>
 #include <vector>
 #include "CUnit.h"
-#include "CCircuit.h" r
+#include "CCircuit.h"
 
 bool is_close(double a, double b, double epsilon = 1e-6) { return std::abs(a - b) < epsilon; }
 

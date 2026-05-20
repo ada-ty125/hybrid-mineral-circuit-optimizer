@@ -7,6 +7,7 @@
 
 #include "CCircuit.h"
 #include "CSimulator.h"
+#include "RequiredFunctions.h"
 
 void test_valid_initialise() {
     std::vector<int> circuit_vector = {1, 2, 3, 2, 2, 0, 1, 2, 3, 4};
@@ -77,6 +78,35 @@ void test_circuit_performance_span_wrapper() {
     assert(std::isfinite(score));
 }
 
+void test_span_rejects_unreachable_island() {
+    // Feed enters unit 0 only; unit 1 is disconnected (same layout as validity_checker TEST 4).
+    std::vector<int> circuit_vector = {1, 2, 2, 2, 2, 0, 2, 3, 2, 3};
+
+    assert(!check_validity(std::span<const int>(circuit_vector)));
+
+    const double score = circuit_performance(std::span<const int>(circuit_vector));
+    assert(std::abs(score - (-40000.0)) < 1.0);
+}
+
+void test_custom_k_changes_fitness() {
+    std::vector<int> circuit_vector = {1, 2, 3, 2, 2, 0, 1, 2, 3, 4};
+
+    Simulator_Parameters baseline = default_simulator_parameters;
+
+    Simulator_Parameters high_k = default_simulator_parameters;
+    high_k.k_TypeA[0][0] = 0.05;
+
+    Circuit circuit_baseline;
+    assert(circuit_baseline.initialise(circuit_vector));
+    const double score_baseline = CSimulator::evaluate(circuit_baseline, baseline);
+
+    Circuit circuit_high_k;
+    assert(circuit_high_k.initialise(circuit_vector));
+    const double score_high_k = CSimulator::evaluate(circuit_high_k, high_k);
+
+    assert(score_baseline != score_high_k);
+}
+
 void test_example_5_unit_case() {
     std::vector<int> circuit_vector = {1, 5, 3, 2, 2, 2, 2, 3, 3, 2, 7, 2, 3, 4, 1, 2, 0, 5, 6, 2};
 
@@ -109,6 +139,8 @@ int main() {
     test_reachability_from_feed();
     test_simulator_returns_finite_score();
     test_circuit_performance_span_wrapper();
+    test_span_rejects_unreachable_island();
+    test_custom_k_changes_fitness();
     test_example_5_unit_case();
 
     std::cout << "All simulator refactor tests passed.\n";
