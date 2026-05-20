@@ -3,7 +3,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Find OpenMP package required for multithreaded evaluation and reproduction
-find_package(OpenMP REQUIRED)
+find_package(OpenMP REQUIRED COMPONENTS CXX)
 
 # add the genetic algorithm library (change sections as needed)
 add_library(geneticAlgorithm Genetic_Algorithm.cpp PRNG.cpp)
