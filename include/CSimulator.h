@@ -7,14 +7,60 @@
 
 #include "CSRGraph.h"
 #include "RequiredFunctions.h"
+#include "CCircuit.h"
 
 struct Simulator_Parameters {
-    double tolerance;
-    int max_iterations;
-    // other parameters for your circuit simulator
+    double tolerance = 1e-6;
+    int max_iterations = 10000;
 };
 
 extern Simulator_Parameters default_simulator_parameters;
 
-double circuit_performance(const ESE::Graph& graph,
-                           struct Simulator_Parameters simulator_parameters);
+class CSimulator {
+  public:
+    static double evaluate(
+        Circuit& circuit,
+        const Simulator_Parameters& simulator_parameters =
+            default_simulator_parameters
+    );
+
+  private:
+    static void calculate_all_outputs(Circuit& circuit);
+
+    static void save_old_feeds(Circuit& circuit);
+
+    static void clear_all_feeds(Circuit& circuit);
+
+    static void add_to_unit_feed(
+        Circuit& circuit,
+        int unit_idx,
+        const std::array<double, N_COMPONENTS>& material
+    );
+
+    static void add_to_unit_feed(
+        Circuit& circuit,
+        int unit_idx,
+        const double material[N_COMPONENTS]
+    );
+
+    static void clear_final_outputs(Circuit& circuit);
+
+    static void distribute_outputs(Circuit& circuit);
+
+    static bool has_converged(
+        const Circuit& circuit,
+        double tolerance
+    );
+};
+
+double circuit_performance(
+    const ESE::Graph& graph,
+    Simulator_Parameters simulator_parameters =
+        default_simulator_parameters
+);
+
+double circuit_performance(
+    std::span<const int> circuit_span,
+    Simulator_Parameters simulator_parameters =
+        default_simulator_parameters
+);

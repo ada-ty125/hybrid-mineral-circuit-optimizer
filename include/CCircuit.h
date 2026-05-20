@@ -18,15 +18,16 @@ namespace ESE {
 class CSRGraph;
 }
 
-bool check_validity(const ESE::CSRGraph& graph);
+class CSimulator;
 
-// Might want to derive from BaseGraph
+bool check_validity(const ESE::CSRGraph& graph);
 
 class Circuit {
   public:
     Circuit();
     explicit Circuit(int num_units);
     explicit Circuit(std::span<const int> circuit_vector);
+
     bool initialise(std::span<const int> circuit_vector);
 
     bool is_unit_id(int id) const noexcept;
@@ -44,33 +45,29 @@ class Circuit {
     int feed_dest() const noexcept;
     const std::vector<int>& output_destinations(int unit_id) const;
 
-    static bool check_validity(int vector_size, int*);
-    static bool check_validity(int vector_size, int*, int unit_parameters_size,
-                               double* unit_parameters);
-
-    double evaluate();
+    static bool check_validity(int vector_size, int* circuit_vector);
+    static bool check_validity(
+        int vector_size,
+        int* circuit_vector,
+        int unit_parameters_size,
+        double* unit_parameters
+    );
 
     friend bool check_validity(const ESE::CSRGraph& graph);
+    friend class CSimulator;
 
   private:
     int num_inputs_ = 0;
     int num_units_ = 0;
     int num_products_ = 0;
     int feed_dest_ = 0;
+
     std::vector<CUnit> units;
     std::vector<int> empty_outputs_;
 
-    void set_unit_constants(CUnit& unit);
-    void mark_units(int unit_num);
-    void calculate_all_outputs();
-    void save_old_feeds();
-    void clear_all_feeds();
-    void add_to_unit_feed(int unit_idx, const std::array<double, N_COMPONENTS>& material);
-    void add_to_unit_feed(int unit_idx, const double material[N_COMPONENTS]);
-    void clear_final_outputs();
-    void distribute_outputs();
-    bool has_converged() const;
-
     std::vector<std::array<double, N_COMPONENTS>> final_products;
     std::array<double, N_COMPONENTS> final_tailings{};
+
+    void set_unit_constants(CUnit& unit);
+    void mark_units(int unit_num);
 };
