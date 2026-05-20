@@ -124,9 +124,22 @@ double optimize_hybrid(
     for (std::size_t i = 0; i < pop_size; ++i) {
         population[i].discrete_vector.resize(discrete_extent);
         population[i].continuous_vector.resize(continuous_extent);
+
+        int attempt_count = 0;
+        const int MAX_ATTEMPTS = 500;
+        bool is_valid = false;
+
         do {
             ga_functions.vector_generator(fixed_prefix, population[i].discrete_vector, global_rng);
-        } while (!validity_checker(population[i].discrete_vector));
+            is_valid = validity_checker(population[i].discrete_vector);
+            attempt_count++;
+
+            if (!is_valid && attempt_count >= MAX_ATTEMPTS) {
+                std::fill(population[i].discrete_vector.begin(),
+                          population[i].discrete_vector.end(), 0);
+                break;
+            }
+        } while (!is_valid);
 
         if (continuous_extent > 0) {
             if (i < biased_count) {
@@ -269,19 +282,40 @@ double optimize_hybrid(
 
                 // Explorer Injection: Enforces unique structural trials over parent clones
                 if (!c1_any_valid) {
+                    int exp_attempts1 = 0;
+                    bool exp1_valid = false;
                     do {
                         ga_functions.vector_generator(fixed_prefix, c1_best.discrete_vector,
                                                       local_rng);
-                    } while (!validity_checker(c1_best.discrete_vector));
+                        exp1_valid = validity_checker(c1_best.discrete_vector);
+                        exp_attempts1++;
+                        if (!exp1_valid && exp_attempts1 >= 500) {
+                            std::fill(c1_best.discrete_vector.begin(),
+                                      c1_best.discrete_vector.end(), 0);
+                            break;
+                        }
+                    } while (!exp1_valid);
+
                     if (continuous_extent > 0) {
                         for (double& x : c1_best.continuous_vector) x = uni_dist(local_rng);
                     }
                 }
+
                 if (!c2_any_valid && (i + 1 < pop_size)) {
+                    int exp_attempts2 = 0;
+                    bool exp2_valid = false;
                     do {
                         ga_functions.vector_generator(fixed_prefix, c2_best.discrete_vector,
                                                       local_rng);
-                    } while (!validity_checker(c2_best.discrete_vector));
+                        exp2_valid = validity_checker(c2_best.discrete_vector);
+                        exp_attempts2++;
+                        if (!exp2_valid && exp_attempts2 >= 500) {
+                            std::fill(c2_best.discrete_vector.begin(),
+                                      c2_best.discrete_vector.end(), 0);
+                            break;
+                        }
+                    } while (!exp2_valid);
+
                     if (continuous_extent > 0) {
                         for (double& x : c2_best.continuous_vector) x = uni_dist(local_rng);
                     }
@@ -382,4 +416,5 @@ BaseResult<std::span<int>> optimize_span(std::span<const int> const fixed_prefix
     int* empty_data = new int[fixed_prefix.size()];
     std::copy(fixed_prefix.begin(), fixed_prefix.end(), empty_data);
     return BaseResult<std::span<int>>{std::span<int>(empty_data, fixed_prefix.size()), 0.0};
+}
 }

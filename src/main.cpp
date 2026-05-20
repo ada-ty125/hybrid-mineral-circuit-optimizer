@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <random>
@@ -24,15 +25,49 @@ std::size_t get_extent_fixed(std::span<const int> const fixed_prefix) {
 
 void generate_random_vector_fixed(std::span<const int> const fixed_values,
                                   std::span<int> random_values, std::mt19937& rng) {
-    int num_units = fixed_values[1];
-    int max_destination_val = num_units + 3;
-    std::uniform_int_distribution<int> dest_dist(0, max_destination_val - 1);
-    std::uniform_int_distribution<int> feed_dist(0, num_units - 1);
+    if (random_values.empty()) return;
 
-    if (!random_values.empty()) {
-        random_values[0] = feed_dist(rng);
-        for (std::size_t i = 1; i < random_values.size(); ++i) {
-            random_values[i] = dest_dist(rng);
+    int num_units = fixed_values[1];
+    int num_products = fixed_values[2];
+    int max_node_id = num_units + num_products;
+
+    std::uniform_int_distribution<int> feed_dist(0, num_units - 1);
+    random_values[0] = feed_dist(rng);
+
+    int current_unit = 0;
+    int outputs_assigned_for_current_unit = 0;
+    int expected_outputs = fixed_values[3 + current_unit];
+    std::vector<int> current_unit_dests;
+
+    for (std::size_t i = 1; i < random_values.size(); ++i) {
+        std::vector<int> pool;
+
+        for (int val = 0; val < max_node_id; ++val) {
+            if (val == current_unit) continue;
+            if (std::find(current_unit_dests.begin(), current_unit_dests.end(), val) !=
+                current_unit_dests.end())
+                continue;
+
+            pool.push_back(val);
+        }
+
+        if (!pool.empty()) {
+            std::uniform_int_distribution<std::size_t> dist(0, pool.size() - 1);
+            random_values[i] = pool[dist(rng)];
+        } else {
+            random_values[i] = 0;
+        }
+
+        current_unit_dests.push_back(random_values[i]);
+        outputs_assigned_for_current_unit++;
+
+        if (outputs_assigned_for_current_unit == expected_outputs) {
+            current_unit++;
+            if (current_unit < num_units) {
+                expected_outputs = fixed_values[3 + current_unit];
+            }
+            outputs_assigned_for_current_unit = 0;
+            current_unit_dests.clear();
         }
     }
 }
@@ -62,23 +97,50 @@ std::size_t get_extent_swapable(std::span<const int> const base_prefix) {
 
 void generate_random_vector_swapable(std::span<const int> const base_prefix,
                                      std::span<int> random_values, std::mt19937& rng) {
-    int num_units = base_prefix[1];  // 8
-    std::uniform_int_distribution<int> type_dist(2, 3);
-    std::uniform_int_distribution<int> feed_dist(0, num_units - 1);
-    std::uniform_int_distribution<int> dest_dist(0, num_units + 2);
+    int num_units = base_prefix[1];
+    int num_products = base_prefix[2];
+    int max_node_id = num_units + num_products;
 
-    if (random_values.size() >= get_extent_swapable(base_prefix)) {
-        for (int i = 0; i < num_units; ++i) random_values[i] = type_dist(rng);
-        random_values[num_units] = feed_dist(rng);
-        for (std::size_t i = num_units + 1; i < random_values.size(); ++i) {
-            random_values[i] = dest_dist(rng);
+    if (random_values.size() < get_extent_swapable(base_prefix)) return;
+
+    std::uniform_int_distribution<int> type_dist(2, 3);
+    for (int i = 0; i < num_units; ++i) {
+        random_values[i] = type_dist(rng);
+    }
+
+    std::uniform_int_distribution<int> feed_dist(0, num_units - 1);
+    random_values[num_units] = feed_dist(rng);
+
+    int start_idx = num_units + 1;
+    for (int u = 0; u < num_units; ++u) {
+        std::vector<int> current_unit_dests;
+
+        for (int slot = 0; slot < 3; ++slot) {
+            std::vector<int> pool;
+            for (int val = 0; val < max_node_id; ++val) {
+                if (val == u) continue;
+                if (std::find(current_unit_dests.begin(), current_unit_dests.end(), val) !=
+                    current_unit_dests.end())
+                    continue;
+
+                pool.push_back(val);
+            }
+
+            if (!pool.empty()) {
+                std::uniform_int_distribution<std::size_t> dist(0, pool.size() - 1);
+                int chosen_dest = pool[dist(rng)];
+                random_values[start_idx + u * 3 + slot] = chosen_dest;
+                current_unit_dests.push_back(chosen_dest);
+            } else {
+                random_values[start_idx + u * 3 + slot] = 0;
+            }
         }
     }
 }
 
 void custom_mutator_swapable(std::span<const int> const base_prefix, std::span<int> values,
                              double mutation_rate, std::mt19937& rng) {
-    int num_units = base_prefix[1];  // 8
+    int num_units = base_prefix[1];
     std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
 
     for (std::size_t i = 0; i < values.size(); ++i) {
@@ -193,7 +255,7 @@ int main(int argc, char* argv[]) {
 
         auto pack_swapable_for_eval = [base_prefix](std::span<const int> discrete) {
             std::vector<int> full;
-            int num_units = base_prefix[1];  // 8
+            int num_units = base_prefix[1];
 
             full.insert(full.end(), base_prefix.begin(), base_prefix.end());
             for (int i = 0; i < num_units; ++i) full.push_back(discrete[i]);
