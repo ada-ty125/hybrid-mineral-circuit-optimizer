@@ -417,4 +417,3 @@ BaseResult<std::span<int>> optimize_span(std::span<const int> const fixed_prefix
     std::copy(fixed_prefix.begin(), fixed_prefix.end(), empty_data);
     return BaseResult<std::span<int>>{std::span<int>(empty_data, fixed_prefix.size()), 0.0};
 }
-}
