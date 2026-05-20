@@ -27,9 +27,10 @@ COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/tests/data ${CMAK
 )
 
 add_test(NAME speed_checker
-         COMMAND timeout 10s ./speed_checker 1000
+         COMMAND speed_checker 1000
          WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests/bin")
 set_property(TEST speed_checker PROPERTY LABELS simulator)
+set_property(TEST speed_checker PROPERTY TIMEOUT 10)
 add_dependencies(speed_checker copy_data)
 
 

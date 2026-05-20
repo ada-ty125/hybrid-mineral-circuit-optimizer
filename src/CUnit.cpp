@@ -1,6 +1,13 @@
 #include "CUnit.h"
+#include "CCircuit.h"
 
 #include <cmath>
+
+CUnit::CUnit() {
+    n_outputs = 2;
+    unit_type = 0;
+    output.resize(2, 0);
+}
 
 /**
  * Resets the current incoming mass feed components to zero.
@@ -9,6 +16,9 @@ void CUnit::clear_feeds() {
     for (int i = 0; i < N_COMPONENTS; i++) {
         feed[i] = 0.0;
     }
+    feed_P = 0.0;
+    feed_G = 0.0;
+    feed_W = 0.0;
 }
 
 /**
@@ -36,7 +46,8 @@ double CUnit::calculate_residence_time() const {
         total_mass_flow = 1e-10;
     }
     double total_vol_flow = total_mass_flow / rho;
-    return (phi * volume) / total_vol_flow;
+    residence_time = (phi * volume) / total_vol_flow;
+    return residence_time;
 }
 
 /**
@@ -46,7 +57,7 @@ double CUnit::calculate_residence_time() const {
  * @param component Index of the chemical component (Pal, Gor, Waste).
  * @return Fractional recovery value between 0.0 and 1.0.
  */
-double CUnit::calculate_recovery(int st_idx, int component) const {
+double CUnit::calculate_recovery(int st_idx, int component, const double k_matrix[2][3]) const {
     double tau = calculate_residence_time();
     double summation = 0.0;
     int num_c_stream = n_outputs - 1;
@@ -64,7 +75,8 @@ double CUnit::calculate_recovery(int st_idx, int component) const {
  * Simulates unit separation physics. Computes output mass flows for all
  * concentrate streams and applies mass conservation to calculate the tailings.
  */
-void CUnit::calculate_outputs() {
+void CUnit::calculate_outputs(const Simulator_Parameters& params) {
+    const double (*k_matrix)[3] = unit_type == 0 ? params.k_TypeA : params.k_TypeB;
     int num_c_streams = n_outputs - 1;
     concentrate.resize(num_c_streams);
     double total_recovery[N_COMPONENTS] = {0.0, 0.0, 0.0};
@@ -72,7 +84,7 @@ void CUnit::calculate_outputs() {
     // Calculating mass partitioned into each concentrate stream
     for (int out = 0; out < num_c_streams; out++) {
         for (int comp = 0; comp < N_COMPONENTS; comp++) {
-            double R = calculate_recovery(out, comp);
+            double R = calculate_recovery(out, comp, k_matrix);
             concentrate[out][comp] = feed[comp] * R;
             total_recovery[comp] += R;
         }
