@@ -10,6 +10,7 @@
 #include "CUnit.h"
 #include "CCircuit.h"
 #include "Economics.h"
+#include "CSimulator.h"
 
 namespace {
 struct ParsedCircuit {
@@ -262,7 +263,8 @@ Circuit::Circuit(int num_units) {
     }
 }
 
-bool Circuit::initialise(std::span<const int> circuit_vector) {
+bool Circuit::initialise(std::span<const int> circuit_vector,
+                         const Simulator_Parameters& simulator_parameters) {
     ParsedCircuit parsed;
     if (!parse_circuit(circuit_vector, parsed)) {
         return false;
@@ -280,7 +282,7 @@ bool Circuit::initialise(std::span<const int> circuit_vector) {
     for (int unit_id = 0; unit_id < parsed.num_units; ++unit_id) {
         CUnit& unit = units[static_cast<std::size_t>(unit_id)];
         unit.n_outputs = static_cast<int>(parsed.outputs[static_cast<std::size_t>(unit_id)].size());
-        set_unit_constants(unit);
+        set_unit_constants(unit, simulator_parameters);
         unit.output = parsed.outputs[static_cast<std::size_t>(unit_id)];
     }
 
@@ -425,32 +427,23 @@ const std::vector<int>& Circuit::output_destinations(int unit_id) const {
 }
 
 // Helper function to set unit constants based on unit type (Type A or Type B)
-void Circuit::set_unit_constants(CUnit& unit) {
+void Circuit::set_unit_constants(CUnit& unit, const Simulator_Parameters& simulator_parameters) {
     if (unit.n_outputs == 2) {
-        // Type A
         unit.unit_type = 0;
-        unit.k_matrix[0][0] = 0.008;
-        unit.k_matrix[0][1] = 0.006;
-        unit.k_matrix[0][2] = 0.0005;
-
-        unit.k_matrix[1][0] = 0.0;
-        unit.k_matrix[1][1] = 0.0;
-        unit.k_matrix[1][2] = 0.0;
-    }
-
-    else if (unit.n_outputs == 3) {
-        // Type B
+        for (int row = 0; row < 2; ++row) {
+            for (int comp = 0; comp < 3; ++comp) {
+                unit.k_matrix[row][comp] = simulator_parameters.k_TypeA[row][comp];
+            }
+        }
+    } else if (unit.n_outputs == 3) {
         unit.unit_type = 1;
-        unit.k_matrix[0][0] = 0.007;
-        unit.k_matrix[0][1] = 0.001;
-        unit.k_matrix[0][2] = 0.001;
-
-        unit.k_matrix[1][0] = 0.001;
-        unit.k_matrix[1][1] = 0.006;
-        unit.k_matrix[1][2] = 0.001;
+        for (int row = 0; row < 2; ++row) {
+            for (int comp = 0; comp < 3; ++comp) {
+                unit.k_matrix[row][comp] = simulator_parameters.k_TypeB[row][comp];
+            }
+        }
     }
 }
-
 
 void Circuit::mark_units(int unit_num) {
     if (!is_unit_id(unit_num)) {
@@ -469,4 +462,3 @@ void Circuit::mark_units(int unit_num) {
         }
     }
 }
-

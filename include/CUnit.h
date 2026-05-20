@@ -71,7 +71,7 @@ class CUnit {
 
     double calculate_recovery(int st_idx, int component) const;
 
-    void calculate_outputs();
+    void calculate_outputs(double tank_volume, double fluid_density);
 
     void clear_feeds();
 };

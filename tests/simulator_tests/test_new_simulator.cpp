@@ -9,13 +9,7 @@
 #include "CSimulator.h"
 
 void test_valid_initialise() {
-    std::vector<int> circuit_vector = {
-        1, 2, 3,
-        2, 2,
-        0,
-        1, 2,
-        3, 4
-    };
+    std::vector<int> circuit_vector = {1, 2, 3, 2, 2, 0, 1, 2, 3, 4};
 
     Circuit circuit;
     assert(circuit.initialise(circuit_vector));
@@ -27,53 +21,31 @@ void test_valid_initialise() {
 }
 
 void test_invalid_self_recycle_rejected() {
-    std::vector<int> circuit_vector = {
-        1, 2, 3,
-        2, 2,
-        0,
-        0, 2,  // unit 0 sends output to itself
-        3, 4
-    };
+    std::vector<int> circuit_vector = {1, 2, 3, 2, 2, 0, 0, 2,  // unit 0 sends output to itself
+                                       3, 4};
 
     Circuit circuit;
     assert(!circuit.initialise(circuit_vector));
 }
 
 void test_invalid_duplicate_outputs_rejected() {
-    std::vector<int> circuit_vector = {
-        1, 2, 3,
-        2, 2,
-        0,
-        1, 1,  // duplicate outputs from unit 0
-        3, 4
-    };
+    std::vector<int> circuit_vector = {1, 2, 3, 2, 2, 0, 1, 1,  // duplicate outputs from unit 0
+                                       3, 4};
 
     Circuit circuit;
     assert(!circuit.initialise(circuit_vector));
 }
 
 void test_invalid_product_id_rejected() {
-    std::vector<int> circuit_vector = {
-        1, 2, 3,
-        2, 2,
-        0,
-        1, 99,  // invalid destination
-        3, 4
-    };
+    std::vector<int> circuit_vector = {1, 2, 3, 2, 2, 0, 1, 99,  // invalid destination
+                                       3, 4};
 
     Circuit circuit;
     assert(!circuit.initialise(circuit_vector));
 }
 
 void test_reachability_from_feed() {
-    std::vector<int> circuit_vector = {
-        1, 3, 3,
-        2, 2, 2,
-        0,
-        1, 3,
-        2, 4,
-        3, 4
-    };
+    std::vector<int> circuit_vector = {1, 3, 3, 2, 2, 2, 0, 1, 3, 2, 4, 3, 4};
 
     Circuit circuit;
     assert(circuit.initialise(circuit_vector));
@@ -87,13 +59,7 @@ void test_reachability_from_feed() {
 }
 
 void test_simulator_returns_finite_score() {
-    std::vector<int> circuit_vector = {
-        1, 2, 3,
-        2, 2,
-        0,
-        1, 2,
-        3, 4
-    };
+    std::vector<int> circuit_vector = {1, 2, 3, 2, 2, 0, 1, 2, 3, 4};
 
     Circuit circuit;
     assert(circuit.initialise(circuit_vector));
@@ -104,13 +70,7 @@ void test_simulator_returns_finite_score() {
 }
 
 void test_circuit_performance_span_wrapper() {
-    std::vector<int> circuit_vector = {
-        1, 2, 3,
-        2, 2,
-        0,
-        1, 2,
-        3, 4
-    };
+    std::vector<int> circuit_vector = {1, 2, 3, 2, 2, 0, 1, 2, 3, 4};
 
     double score = circuit_performance(std::span<const int>(circuit_vector));
 
@@ -118,16 +78,7 @@ void test_circuit_performance_span_wrapper() {
 }
 
 void test_example_5_unit_case() {
-    std::vector<int> circuit_vector = {
-        1, 5, 3,
-        2, 2, 2, 2, 3,
-        3,
-        2, 7,
-        2, 3,
-        4, 1,
-        2, 0,
-        5, 6, 2
-    };
+    std::vector<int> circuit_vector = {1, 5, 3, 2, 2, 2, 2, 3, 3, 2, 7, 2, 3, 4, 1, 2, 0, 5, 6, 2};
 
     Circuit circuit;
 

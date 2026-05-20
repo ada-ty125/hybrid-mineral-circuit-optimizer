@@ -10,15 +10,11 @@
 #include <vector>
 #include <span>
 
+Simulator_Parameters default_simulator_parameters;
 
-Simulator_Parameters default_simulator_parameters{
-    1e-6,
-    10000
-};
-
-void CSimulator::calculate_all_outputs(Circuit& circuit) {
+void CSimulator::calculate_all_outputs(Circuit& circuit, const Simulator_Parameters& params) {
     for (auto& unit : circuit.units) {
-        unit.calculate_outputs();
+        unit.calculate_outputs(params.tank_volume, params.fluid_density);
     }
 }
 
@@ -46,10 +42,8 @@ void CSimulator::clear_all_feeds(Circuit& circuit) {
     }
 }
 
-void CSimulator::add_to_unit_feed(
-    Circuit& circuit,
-    int unit_idx,
-    const std::array<double, N_COMPONENTS>& material) {
+void CSimulator::add_to_unit_feed(Circuit& circuit, int unit_idx,
+                                  const std::array<double, N_COMPONENTS>& material) {
     for (int comp = 0; comp < N_COMPONENTS; comp++) {
         circuit.units[unit_idx].feed[comp] += material[comp];
     }
@@ -59,10 +53,8 @@ void CSimulator::add_to_unit_feed(
     circuit.units[unit_idx].feed_W = circuit.units[unit_idx].feed[2];
 }
 
-void CSimulator::add_to_unit_feed(
-    Circuit& circuit,
-    int unit_idx,
-    const double material[N_COMPONENTS]) {
+void CSimulator::add_to_unit_feed(Circuit& circuit, int unit_idx,
+                                  const double material[N_COMPONENTS]) {
     for (int comp = 0; comp < N_COMPONENTS; comp++) {
         circuit.units[unit_idx].feed[comp] += material[comp];
     }
@@ -120,7 +112,8 @@ void CSimulator::distribute_outputs(Circuit& circuit) {
     }
 }
 
-bool CSimulator::has_converged(const Circuit& circuit, const Simulator_Parameters& simulator_parameters) {
+bool CSimulator::has_converged(const Circuit& circuit,
+                               const Simulator_Parameters& simulator_parameters) {
     for (const auto& unit : circuit.units) {
         for (int comp = 0; comp < N_COMPONENTS; comp++) {
             double old_val = unit.old_feed[comp];
@@ -139,34 +132,32 @@ bool CSimulator::has_converged(const Circuit& circuit, const Simulator_Parameter
 }
 
 double CSimulator::evaluate(Circuit& circuit, const Simulator_Parameters& simulator_parameters) {
-    double palusznium_feed = 8.0;
-    double gormanium_feed = 12.0;
-    double waste_feed = 80.0;
-    if (circuit.feed_dest_ < 0 ||
-        circuit.feed_dest_ >= static_cast<int>(circuit.units.size())) {
-        return cuprite::worst_case_value(waste_feed, cuprite::default_economics);
+    if (circuit.feed_dest_ < 0 || circuit.feed_dest_ >= static_cast<int>(circuit.units.size())) {
+        return cuprite::worst_case_value(simulator_parameters.waste_feed,
+                                         cuprite::default_economics);
     }
 
     if (circuit.num_products() < 2 || circuit.final_products.size() < 2) {
-        return cuprite::worst_case_value(waste_feed, cuprite::default_economics);
+        return cuprite::worst_case_value(simulator_parameters.waste_feed,
+                                         cuprite::default_economics);
     }
 
-    circuit.units[circuit.feed_dest_].feed[0] = palusznium_feed;
-    circuit.units[circuit.feed_dest_].feed[1] = gormanium_feed;
-    circuit.units[circuit.feed_dest_].feed[2] = waste_feed;
+    circuit.units[circuit.feed_dest_].feed[0] = simulator_parameters.palusznium_feed;
+    circuit.units[circuit.feed_dest_].feed[1] = simulator_parameters.gormanium_feed;
+    circuit.units[circuit.feed_dest_].feed[2] = simulator_parameters.waste_feed;
 
     circuit.units[circuit.feed_dest_].feed_P = circuit.units[circuit.feed_dest_].feed[0];
     circuit.units[circuit.feed_dest_].feed_G = circuit.units[circuit.feed_dest_].feed[1];
     circuit.units[circuit.feed_dest_].feed_W = circuit.units[circuit.feed_dest_].feed[2];
 
     for (int iter = 0; iter < simulator_parameters.max_iterations; iter++) {
-        calculate_all_outputs(circuit);
+        calculate_all_outputs(circuit, simulator_parameters);
         save_old_feeds(circuit);
         clear_all_feeds(circuit);
 
-        circuit.units[circuit.feed_dest_].feed[0] += palusznium_feed;
-        circuit.units[circuit.feed_dest_].feed[1] += gormanium_feed;
-        circuit.units[circuit.feed_dest_].feed[2] += waste_feed;
+        circuit.units[circuit.feed_dest_].feed[0] += simulator_parameters.palusznium_feed;
+        circuit.units[circuit.feed_dest_].feed[1] += simulator_parameters.gormanium_feed;
+        circuit.units[circuit.feed_dest_].feed[2] += simulator_parameters.waste_feed;
 
         circuit.units[circuit.feed_dest_].feed_P = circuit.units[circuit.feed_dest_].feed[0];
         circuit.units[circuit.feed_dest_].feed_G = circuit.units[circuit.feed_dest_].feed[1];
@@ -176,17 +167,11 @@ double CSimulator::evaluate(Circuit& circuit, const Simulator_Parameters& simula
         distribute_outputs(circuit);
 
         if (has_converged(circuit, simulator_parameters)) {
-            cuprite::Stream pal_product{
-                circuit.final_products[0][0],
-                circuit.final_products[0][1],
-                circuit.final_products[0][2]
-            };
+            cuprite::Stream pal_product{circuit.final_products[0][0], circuit.final_products[0][1],
+                                        circuit.final_products[0][2]};
 
-            cuprite::Stream gor_product{
-                circuit.final_products[1][0],
-                circuit.final_products[1][1],
-                circuit.final_products[1][2]
-            };
+            cuprite::Stream gor_product{circuit.final_products[1][0], circuit.final_products[1][1],
+                                        circuit.final_products[1][2]};
 
             int n_A = 0;
             int n_B = 0;
@@ -201,22 +186,23 @@ double CSimulator::evaluate(Circuit& circuit, const Simulator_Parameters& simula
 
             cuprite::CircuitDescriptor descriptor{n_A, n_B};
 
-            return cuprite::economic_value(
-                pal_product,
-                gor_product,
-                descriptor,
-                cuprite::fixed_op_cost,
-                cuprite::default_economics
-            );
+            return cuprite::economic_value(pal_product, gor_product, descriptor,
+                                           cuprite::fixed_op_cost, cuprite::default_economics);
         }
     }
 
-    return cuprite::worst_case_value(waste_feed, cuprite::default_economics);
+    return cuprite::worst_case_value(simulator_parameters.waste_feed, cuprite::default_economics);
 }
 
-
-double circuit_performance(const ESE::Graph& graph) {
+double circuit_performance(const ESE::Graph& graph, Simulator_Parameters simulator_parameters) {
     const ESE::CSRGraph& csr_graph = static_cast<const ESE::CSRGraph&>(graph);
+
+    // Explicit guard clause check to filter dead graphs before evaluating
+    if (!check_validity(csr_graph)) {
+        return cuprite::worst_case_value(simulator_parameters.waste_feed,
+                                         cuprite::default_economics);
+    }
+
     int num_units = static_cast<int>(csr_graph.n_dynamic_nodes);
 
     std::vector<int> circuit_vec;
@@ -230,6 +216,9 @@ double circuit_performance(const ESE::Graph& graph) {
     }
 
     int true_feed_destination = 0;
+    if (csr_graph.input_index != nullptr && csr_graph.n_root_nodes > 0) {
+        true_feed_destination = static_cast<int>(csr_graph.input_index[0]);
+    }  // explicit path lookup
     circuit_vec.push_back(true_feed_destination);
 
     for (int i = 0; i < num_units; i++) {
@@ -243,8 +232,9 @@ double circuit_performance(const ESE::Graph& graph) {
 
     Circuit circuit;
 
-    if (!circuit.initialise(circuit_vec)) {
-        return cuprite::worst_case_value(80.0, cuprite::default_economics);
+    if (!circuit.initialise(circuit_vec, simulator_parameters)) {
+        return cuprite::worst_case_value(simulator_parameters.waste_feed,
+                                         cuprite::default_economics);
     }
 
     return CSimulator::evaluate(circuit, default_simulator_parameters);
@@ -253,8 +243,9 @@ double circuit_performance(const ESE::Graph& graph) {
 double circuit_performance(std::span<const int> const circuit_span) {
     Circuit circuit;
 
-    if (!circuit.initialise(circuit_span)) {
-        return cuprite::worst_case_value(80.0, cuprite::default_economics);
+    if (!circuit.initialise(circuit_span, default_simulator_parameters)) {
+        return cuprite::worst_case_value(default_simulator_parameters.waste_feed,
+                                         cuprite::default_economics);
     }
 
     return CSimulator::evaluate(circuit, default_simulator_parameters);
