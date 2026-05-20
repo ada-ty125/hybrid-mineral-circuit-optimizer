@@ -31,8 +31,8 @@ void require(bool condition, const char* label) {
 
 void expect_worst_case(double score, const char* label) {
     if (!is_close(score, kWorstCaseFitness, kWorstCaseEpsilon)) {
-        std::cerr << "[FAIL] " << label << ": expected worst-case " << kWorstCaseFitness
-                  << ", got " << score << "\n";
+        std::cerr << "[FAIL] " << label << ": expected worst-case " << kWorstCaseFitness << ", got "
+                  << score << "\n";
         std::exit(1);
     }
     std::cout << "[PASS] " << label << "\n";
@@ -68,8 +68,7 @@ void test_initialise_applies_tank_volume_and_density() {
     custom.fluid_density = 1500.0;
 
     Circuit circuit_default;
-    require(circuit_default.initialise(kConvergingCircuit, defaults),
-            "initialise with defaults");
+    require(circuit_default.initialise(kConvergingCircuit, defaults), "initialise with defaults");
     const double score_default = CSimulator::evaluate(circuit_default, defaults);
 
     Circuit circuit_custom;
@@ -234,8 +233,7 @@ void test_graph_custom_params_change_fitness() {
     Simulator_Parameters high_k = default_simulator_parameters;
     high_k.k_TypeA[0][0] = 0.05;
 
-    const double score_baseline =
-        circuit_performance(static_cast<const Graph&>(graph), baseline);
+    const double score_baseline = circuit_performance(static_cast<const Graph&>(graph), baseline);
     const double score_high_k = circuit_performance(static_cast<const Graph&>(graph), high_k);
 
     expect_finite_neq_worst(score_baseline, "graph baseline converges");
@@ -253,9 +251,9 @@ void test_graph_invalid_returns_worst_case() {
     CSRGraph graph(sizes, output_index, self_loop);
     require(!check_validity(graph), "self-loop graph invalid");
 
-    expect_worst_case(circuit_performance(static_cast<const Graph&>(graph),
-                                          default_simulator_parameters),
-                      "graph self-loop returns worst-case");
+    expect_worst_case(
+        circuit_performance(static_cast<const Graph&>(graph), default_simulator_parameters),
+        "graph self-loop returns worst-case");
 }
 
 // ---------------------------------------------------------------------------
