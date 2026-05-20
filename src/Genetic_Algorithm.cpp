@@ -399,21 +399,3 @@ double optimize_continuous(
     return optimize_hybrid(fixed_discrete_structure, dummy_discrete, best_continuous_solution,
                            fitness_function, dummy_validity, modular_ga_functions, modified_params);
 }
-
-void default_generator(std::span<const int> const, std::span<int>, RandomNumberGenerator&) {}
-void default_mutator(std::span<const int> const, std::span<int>, std::size_t,
-                     RandomNumberGenerator&) {}
-void default_crossover(std::span<const int> const, std::span<const int> const,
-                       std::span<const int> const, std::span<std::span<int>>,
-                       RandomNumberGenerator&) {}
-double default_similarity(std::span<const int> const, std::span<const int> const,
-                          std::span<const int> const) {
-    return 0.0;
-}
-BaseResult<std::span<int>> optimize_span(std::span<const int> const fixed_prefix,
-                                         double (*)(const std::span<const int>),
-                                         bool (*)(const std::span<const int>), GA_Functions) {
-    int* empty_data = new int[fixed_prefix.size()];
-    std::copy(fixed_prefix.begin(), fixed_prefix.end(), empty_data);
-    return BaseResult<std::span<int>>{std::span<int>(empty_data, fixed_prefix.size()), 0.0};
-}
