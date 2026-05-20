@@ -12,6 +12,7 @@
 struct Simulator_Parameters {
     double tolerance = 1e-6;
     int max_iterations = 10000;
+    double min_denominator = 1e-12;
 };
 
 extern Simulator_Parameters default_simulator_parameters;
@@ -49,18 +50,12 @@ class CSimulator {
 
     static bool has_converged(
         const Circuit& circuit,
-        double tolerance
+        const Simulator_Parameters& simulator_parameters = default_simulator_parameters
     );
 };
 
 double circuit_performance(
     const ESE::Graph& graph,
-    Simulator_Parameters simulator_parameters =
-        default_simulator_parameters
-);
-
-double circuit_performance(
-    std::span<const int> circuit_span,
     Simulator_Parameters simulator_parameters =
         default_simulator_parameters
 );

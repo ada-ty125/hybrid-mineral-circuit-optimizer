@@ -114,19 +114,16 @@ void CSimulator::distribute_outputs(Circuit& circuit) {
     }
 }
 
-bool CSimulator::has_converged(const Circuit& circuit) {
-    constexpr double tolerance = 1e-6;
-    constexpr double min_denominator = 1e-12;
-
+bool CSimulator::has_converged(const Circuit& circuit, const Simulator_Parameters& simulator_parameters) {
     for (const auto& unit : circuit.units) {
         for (int comp = 0; comp < N_COMPONENTS; comp++) {
             double old_val = unit.old_feed[comp];
             double new_val = unit.feed[comp];
 
-            double denom = std::max(std::abs(old_val), min_denominator);
+            double denom = std::max(std::abs(old_val), simulator_parameters.min_denominator);
             double rel_change = std::abs(new_val - old_val) / denom;
 
-            if (rel_change > tolerance) {
+            if (rel_change > simulator_parameters.tolerance) {
                 return false;
             }
         }
@@ -135,13 +132,10 @@ bool CSimulator::has_converged(const Circuit& circuit) {
     return true;
 }
 
-double CSimulator::evaluate(Circuit& circuit) {
-    constexpr int max_iterations = 10000;
-
-    constexpr double palusznium_feed = 8.0;
-    constexpr double gormanium_feed = 12.0;
-    constexpr double waste_feed = 80.0;
-
+double CSimulator::evaluate(Circuit& circuit, const Simulator_Parameters& simulator_parameters) {
+    double palusznium_feed = 8.0;
+    double gormanium_feed = 12.0;
+    double waste_feed = 80.0;
     if (circuit.feed_dest_ < 0 ||
         circuit.feed_dest_ >= static_cast<int>(circuit.units.size())) {
         return cuprite::worst_case_value(waste_feed, cuprite::default_economics);
@@ -159,7 +153,7 @@ double CSimulator::evaluate(Circuit& circuit) {
     circuit.units[circuit.feed_dest_].feed_G = circuit.units[circuit.feed_dest_].feed[1];
     circuit.units[circuit.feed_dest_].feed_W = circuit.units[circuit.feed_dest_].feed[2];
 
-    for (int iter = 0; iter < max_iterations; iter++) {
+    for (int iter = 0; iter < simulator_parameters.max_iterations; iter++) {
         calculate_all_outputs(circuit);
         save_old_feeds(circuit);
         clear_all_feeds(circuit);
@@ -175,7 +169,7 @@ double CSimulator::evaluate(Circuit& circuit) {
         clear_final_outputs(circuit);
         distribute_outputs(circuit);
 
-        if (has_converged(circuit)) {
+        if (has_converged(circuit, simulator_parameters)) {
             cuprite::Stream pal_product{
                 circuit.final_products[0][0],
                 circuit.final_products[0][1],
@@ -215,51 +209,55 @@ double CSimulator::evaluate(Circuit& circuit) {
 }
 
 double circuit_performance(const ESE::Graph& graph) {
-    // 1. Cast safely to access CSR component arrays
-    const ESE::CSRGraph& csr_graph = static_cast<const ESE::CSRGraph&>(graph);
+
+    const ESE::CSRGraph& csr_graph =
+        static_cast<const ESE::CSRGraph&>(graph);
+
     int num_units = csr_graph.n_dynamic_nodes;
 
-    // 2. Reconstruct the flat vector matching CCircuit constructor layout exactly
     std::vector<int> circuit_vec;
-    circuit_vec.push_back(1);                       // Index 0: num_inputs
-    circuit_vec.push_back(num_units);               // Index 1: num_units
-    circuit_vec.push_back(csr_graph.n_sink_nodes);  // Index 2: num_products
 
-    // Step A: Append output counts for every unit
+    circuit_vec.push_back(1);
+    circuit_vec.push_back(num_units);
+    circuit_vec.push_back(csr_graph.n_sink_nodes);
+
     for (int i = 0; i < num_units; i++) {
-        int out_edges = csr_graph.output_index[i + 1] - csr_graph.output_index[i];
+        int out_edges =
+            csr_graph.output_index[i + 1] -
+            csr_graph.output_index[i];
+
         circuit_vec.push_back(out_edges);
     }
 
-    // Step B: Resolve the TRUE feed destination from the graph structure
-    // Instead of assuming 0, look up where the network feed actually enters
     int true_feed_destination = 0;
-    if (num_units > 0) {
-        // In the ESE Graph convention, the circuit feed source is often treated
-        // as entering the node mapped to the graph's starting entry criteria.
-        // If your framework defines an explicit feed lookup, use it here;
-        // otherwise, defaulting to 0 is safe as long as the GA strictly enforces it.
-        true_feed_destination = 0;
-    }
+
     circuit_vec.push_back(true_feed_destination);
 
-    // Step C: Append all the output pipe target destinations
     for (int i = 0; i < num_units; i++) {
-        int out_edges = csr_graph.output_index[i + 1] - csr_graph.output_index[i];
+
+        int out_edges =
+            csr_graph.output_index[i + 1] -
+            csr_graph.output_index[i];
+
         for (int j = 0; j < out_edges; j++) {
-            int edge_idx = csr_graph.output_index[i] + j;
-            circuit_vec.push_back(csr_graph.input_index[edge_idx]);
+
+            int edge_idx =
+                csr_graph.output_index[i] + j;
+
+            circuit_vec.push_back(
+                csr_graph.input_index[edge_idx]
+            );
         }
     }
 
-    // 3. Hand over the perfectly aligned vector to your simulation engine
-    Circuit circuit(circuit_vec);
+    Circuit circuit;
 
-    // 4. Run the iterative physics loop and return the economic optimization score
-    return circuit.evaluate();
+    return CSimulator::evaluate(circuit, simulator_parameters);
 }
 
-double circuit_performance(std::span<const int> const circuit_span) {
+double circuit_performance(
+    std::span<const int> const circuit_span) {
     Circuit circuit(circuit_span);
-    return circuit.evaluate();
+
+    return CSimulator::evaluate(circuit, simulator_parameters);
 }
