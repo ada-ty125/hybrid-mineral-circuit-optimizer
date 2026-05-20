@@ -428,7 +428,8 @@ const std::vector<int>& Circuit::output_destinations(int unit_id) const {
 
 // Helper function to set unit constants based on unit type (Type A or Type B)
 void Circuit::set_unit_constants(CUnit& unit, const Simulator_Parameters& simulator_parameters) {
-    (void)simulator_parameters;
+    unit.volume = simulator_parameters.tank_volume;
+    unit.rho = simulator_parameters.fluid_density;
 
     if (unit.n_outputs == 2) {
         unit.unit_type = 0;

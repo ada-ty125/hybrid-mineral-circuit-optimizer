@@ -14,7 +14,7 @@ Simulator_Parameters default_simulator_parameters;
 
 void CSimulator::calculate_all_outputs(Circuit& circuit, const Simulator_Parameters& params) {
     for (auto& unit : circuit.units) {
-        unit.calculate_outputs(default_simulator_parameters);
+        unit.calculate_outputs(params);
     }
 }
 
@@ -237,10 +237,15 @@ double circuit_performance(const ESE::Graph& graph, Simulator_Parameters simulat
                                          cuprite::default_economics);
     }
 
-    return CSimulator::evaluate(circuit, default_simulator_parameters);
+    return CSimulator::evaluate(circuit, simulator_parameters);
 }
 
 double circuit_performance(std::span<const int> const circuit_span) {
+    if (!check_validity(circuit_span)) {
+        return cuprite::worst_case_value(default_simulator_parameters.waste_feed,
+                                         cuprite::default_economics);
+    }
+
     Circuit circuit;
 
     if (!circuit.initialise(circuit_span, default_simulator_parameters)) {
