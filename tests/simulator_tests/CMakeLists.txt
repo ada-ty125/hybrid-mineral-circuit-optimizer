@@ -14,3 +14,8 @@ set_target_properties(test_economics PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/bin")
 add_test(NAME test_economics COMMAND test_economics)
 set_property(TEST test_economics PROPERTY LABELS simulator)
+
+add_executable(test_new_simulator test_new_simulator.cpp)
+target_link_libraries(test_new_simulator circuitSimulator esegraph)
+target_include_directories(test_new_simulator PRIVATE ${PROJECT_SOURCE_DIR}/includes)
+add_test(NAME test_new_simulator COMMAND test_new_simulator)
