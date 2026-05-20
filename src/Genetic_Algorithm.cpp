@@ -15,7 +15,8 @@ namespace GA_Operators {
 
 /**
  * @brief Selects a high-performing parent using K-way tournament selection.
- * @details Randomly samples K competitors and rewards the ordinal winner to direct selection pressure.
+ * @details Randomly samples K competitors and rewards the ordinal winner to direct selection
+ * pressure.
  */
 std::size_t tournament_selection(const std::vector<Individual>& pop, int tournament_size,
                                  std::mt19937& rng) {
@@ -34,7 +35,8 @@ std::size_t tournament_selection(const std::vector<Individual>& pop, int tournam
 
 /**
  * @brief Recombines discrete structure chromosomes via multi-point segment swapping.
- * @details Extracts unique cut points to split and alternate localized circuit modules between parents.
+ * @details Extracts unique cut points to split and alternate localized circuit modules between
+ * parents.
  */
 void multi_point_crossover(const std::vector<int>& parent1, const std::vector<int>& parent2,
                            std::vector<int>& child1, std::vector<int>& child2, int num_points,
@@ -98,8 +100,9 @@ void gaussian_mutation(std::vector<double>& vec, double mutation_rate, double si
 
 /**
  * @brief Unified optimization core deploying (mu + lambda) replacement and localized retries.
- * @details Implements incremental OpenMP evaluation, incest prevention, and continuous seeding heuristics.
- * If breeding constraints fail, it drops parent cloning and injects fresh valid randomized explorers.
+ * @details Implements incremental OpenMP evaluation, incest prevention, and continuous seeding
+ * heuristics. If breeding constraints fail, it drops parent cloning and injects fresh valid
+ * randomized explorers.
  */
 double optimize_hybrid(
     std::span<const int> const fixed_prefix, std::vector<int>& best_discrete_solution,
@@ -150,7 +153,8 @@ double optimize_hybrid(
     // Initial baseline grading loop for generation zero
 #pragma omp parallel for
     for (std::size_t i = 0; i < pop_size; ++i) {
-        population[i].fitness = fitness_function(population[i].discrete_vector, population[i].continuous_vector);
+        population[i].fitness =
+            fitness_function(population[i].discrete_vector, population[i].continuous_vector);
     }
 
     for (int iter = 0; iter < params.max_iterations; ++iter) {
@@ -203,11 +207,14 @@ double optimize_hybrid(
 
 #pragma omp for schedule(dynamic)
             for (std::size_t i = 0; i < pop_size; i += 2) {
-                std::size_t p1 = GA_Operators::tournament_selection(population, params.tournament_size, local_rng);
-                std::size_t p2 = GA_Operators::tournament_selection(population, params.tournament_size, local_rng);
+                std::size_t p1 = GA_Operators::tournament_selection(
+                    population, params.tournament_size, local_rng);
+                std::size_t p2 = GA_Operators::tournament_selection(
+                    population, params.tournament_size, local_rng);
 
                 for (int retry = 0; retry < 5 && p1 == p2; ++retry) {
-                    p2 = GA_Operators::tournament_selection(population, params.tournament_size, local_rng);
+                    p2 = GA_Operators::tournament_selection(population, params.tournament_size,
+                                                            local_rng);
                 }
 
                 Individual c1_best = population[p1];
@@ -220,10 +227,10 @@ double optimize_hybrid(
                     Individual tmp_c2 = population[p2];
 
                     if (prob_dist(local_rng) < params.crossover_probability) {
-                        GA_Operators::multi_point_crossover(population[p1].discrete_vector,
-                                                            population[p2].discrete_vector,
-                                                            tmp_c1.discrete_vector, tmp_c2.discrete_vector,
-                                                            params.num_crossover_points, local_rng);
+                        GA_Operators::multi_point_crossover(
+                            population[p1].discrete_vector, population[p2].discrete_vector,
+                            tmp_c1.discrete_vector, tmp_c2.discrete_vector,
+                            params.num_crossover_points, local_rng);
                         if (continuous_extent > 0) {
                             GA_Operators::linear_crossover(
                                 population[p1].continuous_vector, population[p2].continuous_vector,
@@ -231,23 +238,26 @@ double optimize_hybrid(
                         }
                     }
 
-                    ga_functions.vector_mutator(fixed_prefix, tmp_c1.discrete_vector, current_mut_prob, local_rng);
+                    ga_functions.vector_mutator(fixed_prefix, tmp_c1.discrete_vector,
+                                                current_mut_prob, local_rng);
                     if (continuous_extent > 0) {
                         GA_Operators::gaussian_mutation(tmp_c1.continuous_vector, current_mut_prob,
-                                                         params.gaussian_sigma, local_rng);
+                                                        params.gaussian_sigma, local_rng);
                     }
 
-                    ga_functions.vector_mutator(fixed_prefix, tmp_c2.discrete_vector, current_mut_prob, local_rng);
+                    ga_functions.vector_mutator(fixed_prefix, tmp_c2.discrete_vector,
+                                                current_mut_prob, local_rng);
                     if (continuous_extent > 0) {
                         GA_Operators::gaussian_mutation(tmp_c2.continuous_vector, current_mut_prob,
-                                                         params.gaussian_sigma, local_rng);
+                                                        params.gaussian_sigma, local_rng);
                     }
 
                     if (!c1_any_valid && validity_checker(tmp_c1.discrete_vector)) {
                         c1_best = tmp_c1;
                         c1_any_valid = true;
                     }
-                    if (!c2_any_valid && (i + 1 < pop_size) && validity_checker(tmp_c2.discrete_vector)) {
+                    if (!c2_any_valid && (i + 1 < pop_size) &&
+                        validity_checker(tmp_c2.discrete_vector)) {
                         c2_best = tmp_c2;
                         c2_any_valid = true;
                     }
@@ -260,7 +270,8 @@ double optimize_hybrid(
                 // Explorer Injection: Enforces unique structural trials over parent clones
                 if (!c1_any_valid) {
                     do {
-                        ga_functions.vector_generator(fixed_prefix, c1_best.discrete_vector, local_rng);
+                        ga_functions.vector_generator(fixed_prefix, c1_best.discrete_vector,
+                                                      local_rng);
                     } while (!validity_checker(c1_best.discrete_vector));
                     if (continuous_extent > 0) {
                         for (double& x : c1_best.continuous_vector) x = uni_dist(local_rng);
@@ -268,7 +279,8 @@ double optimize_hybrid(
                 }
                 if (!c2_any_valid && (i + 1 < pop_size)) {
                     do {
-                        ga_functions.vector_generator(fixed_prefix, c2_best.discrete_vector, local_rng);
+                        ga_functions.vector_generator(fixed_prefix, c2_best.discrete_vector,
+                                                      local_rng);
                     } while (!validity_checker(c2_best.discrete_vector));
                     if (continuous_extent > 0) {
                         for (double& x : c2_best.continuous_vector) x = uni_dist(local_rng);
@@ -285,15 +297,17 @@ double optimize_hybrid(
         // Incremental Evaluation: Only evaluates the fresh offspring via OpenMP
 #pragma omp parallel for
         for (std::size_t i = 0; i < pop_size; ++i) {
-            children[i].fitness = fitness_function(children[i].discrete_vector, children[i].continuous_vector);
+            children[i].fitness =
+                fitness_function(children[i].discrete_vector, children[i].continuous_vector);
         }
 
         // LETHAL CRITICAL RETENTION: Implements the last-year (mu + lambda) survival scheme
-        // Merges parents and kids into a double-sized pool, then selects the absolute survival front.
-        population.insert(population.end(), std::make_move_iterator(children.begin()), std::make_move_iterator(children.end()));
-        std::sort(population.begin(), population.end(), [](const Individual& a, const Individual& b) {
-            return a.fitness > b.fitness;
-        });
+        // Merges parents and kids into a double-sized pool, then selects the absolute survival
+        // front.
+        population.insert(population.end(), std::make_move_iterator(children.begin()),
+                          std::make_move_iterator(children.end()));
+        std::sort(population.begin(), population.end(),
+                  [](const Individual& a, const Individual& b) { return a.fitness > b.fitness; });
         population.resize(pop_size);
     }
 
@@ -326,7 +340,8 @@ double optimize_continuous(
     std::function<double(std::span<const int>, std::span<const double>)> fitness_function,
     Modern_GA_Functions ga_functions, Algorithm_Parameters params) {
     auto dummy_validity = [](std::span<const int> vec) { return true; };
-    std::vector<int> dummy_discrete(fixed_discrete_structure.begin(), fixed_discrete_structure.end());
+    std::vector<int> dummy_discrete(fixed_discrete_structure.begin(),
+                                    fixed_discrete_structure.end());
     Algorithm_Parameters modified_params = params;
     modified_params.crossover_probability = 1.0;
 
@@ -335,8 +350,11 @@ double optimize_continuous(
         std::copy(fixed_discrete_structure.begin(), fixed_discrete_structure.end(), values.begin());
     };
 
-    auto frozen_mutator = [](std::span<const int> prefix, std::span<int> values, double mutation_rate, std::mt19937& rng) {};
-    auto frozen_extent = [fixed_discrete_structure](std::span<const int> prefix) { return fixed_discrete_structure.size(); };
+    auto frozen_mutator = [](std::span<const int> prefix, std::span<int> values,
+                             double mutation_rate, std::mt19937& rng) {};
+    auto frozen_extent = [fixed_discrete_structure](std::span<const int> prefix) {
+        return fixed_discrete_structure.size();
+    };
 
     Modern_GA_Functions modular_ga_functions;
     modular_ga_functions.vector_generator = frozen_generator;
@@ -349,10 +367,15 @@ double optimize_continuous(
 }
 
 void default_generator(std::span<const int> const, std::span<int>, RandomNumberGenerator&) {}
-void default_mutator(std::span<const int> const, std::span<int>, std::size_t, RandomNumberGenerator&) {}
+void default_mutator(std::span<const int> const, std::span<int>, std::size_t,
+                     RandomNumberGenerator&) {}
 void default_crossover(std::span<const int> const, std::span<const int> const,
-                       std::span<const int> const, std::span<std::span<int>>, RandomNumberGenerator&) {}
-double default_similarity(std::span<const int> const, std::span<const int> const, std::span<const int> const) { return 0.0; }
+                       std::span<const int> const, std::span<std::span<int>>,
+                       RandomNumberGenerator&) {}
+double default_similarity(std::span<const int> const, std::span<const int> const,
+                          std::span<const int> const) {
+    return 0.0;
+}
 BaseResult<std::span<int>> optimize_span(std::span<const int> const fixed_prefix,
                                          double (*)(const std::span<const int>),
                                          bool (*)(const std::span<const int>), GA_Functions) {
