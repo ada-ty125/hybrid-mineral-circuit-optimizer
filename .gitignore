@@ -1,2 +1,48 @@
 .vscode
 build/
+build-gcc/
+build-*/
+out/
+cmake-build-*/
+
+# CMake/Make/Ninja generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+DartConfiguration.tcl
+Testing/
+compile_commands.json
+build.ninja
+rules.ninja
+.ninja_deps
+.ninja_log
+Makefile
+
+# Compiler and linker artifacts
+*.o
+*.obj
+*.d
+*.a
+*.la
+*.lo
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.app/
+*.dSYM/
+*.gcno
+*.gcda
+*.gcov
+*.profraw
+*.profdata
+
+# Example build output
+examples/rng/linux/
+
+# Local run artifacts
+convergence.csv
+optimal_circuit.png
