@@ -20,7 +20,8 @@ int main(int argc, char* argv[]) {
     const double tolerance = 1.0e-2;
 
     std::cout << "circuit_performance(graph) close to " << expected << ":\n";
-    double result = circuit_performance(graph);
+    Simulator_Parameters params;
+    double result = circuit_performance(graph, params);
     std::cout << "circuit_performance(graph) = " << result << "\n";
 
     if (std::fabs(result - expected) < tolerance) {
