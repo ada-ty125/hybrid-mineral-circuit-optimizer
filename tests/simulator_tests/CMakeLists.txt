@@ -19,3 +19,8 @@ add_executable(test_new_simulator test_new_simulator.cpp)
 target_link_libraries(test_new_simulator circuitSimulator esegraph)
 target_include_directories(test_new_simulator PRIVATE ${PROJECT_SOURCE_DIR}/includes)
 add_test(NAME test_new_simulator COMMAND test_new_simulator)
+
+add_executable(test_cunit test_cunit.cpp)
+target_link_libraries(test_cunit circuitSimulator esegraph)
+target_include_directories(test_cunit PRIVATE ${PROJECT_SOURCE_DIR}/includes)
+add_test(NAME test_cunit COMMAND test_cunit)

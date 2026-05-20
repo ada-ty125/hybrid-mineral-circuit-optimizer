@@ -9,6 +9,7 @@
 #include <vector>
 
 constexpr int N_COMPONENTS = 3;
+struct Simulator_Parameters;
 
 class CUnit {
   public:
@@ -56,22 +57,12 @@ class CUnit {
     double rho = 3000.0;
     mutable double residence_time = 0.0;
 
-    // Recovery constants
-    // k[0] = Palusznium
-    // k[1] = Gormanium
-    // k[2] = Waste
-    double k[N_COMPONENTS] = {0.0, 0.0, 0.0};
-
-    // Stream 1 and 2 constants (zero for TypeA Stream 2)
-    double k_matrix[2][N_COMPONENTS] = {{0.008, 0.006, 0.0005}, {0.0, 0.0, 0.0}};
-
     // Simulation functions
     double total_feed() const;
     double calculate_residence_time() const;
+    double calculate_recovery(int st_idx, int component, const double k_matrix[2][3]) const;
 
-    double calculate_recovery(int st_idx, int component) const;
-
-    void calculate_outputs(double tank_volume, double fluid_density);
+    void calculate_outputs(const Simulator_Parameters& params);
 
     void clear_feeds();
 };

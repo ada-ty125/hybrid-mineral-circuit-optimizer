@@ -1,4 +1,5 @@
 #include "CUnit.h"
+#include "CCircuit.h"
 
 #include <cmath>
 
@@ -56,7 +57,7 @@ double CUnit::calculate_residence_time() const {
  * @param component Index of the chemical component (Pal, Gor, Waste).
  * @return Fractional recovery value between 0.0 and 1.0.
  */
-double CUnit::calculate_recovery(int st_idx, int component) const {
+double CUnit::calculate_recovery(int st_idx, int component, const double k_matrix[2][3]) const {
     double tau = calculate_residence_time();
     double summation = 0.0;
     int num_c_stream = n_outputs - 1;
@@ -74,26 +75,22 @@ double CUnit::calculate_recovery(int st_idx, int component) const {
  * Simulates unit separation physics. Computes output mass flows for all
  * concentrate streams and applies mass conservation to calculate the tailings.
  */
-void CUnit::calculate_outputs(double tank_volume, double fluid_density) {
-    double total_incoming_feed = feed[0] + feed[1] + feed[2];
+void CUnit::calculate_outputs(const Simulator_Parameters& params) {
+    const double (*k_matrix)[3] = unit_type == 0 ? params.k_TypeA : params.k_TypeB;
+    int num_c_streams = n_outputs - 1;
+    concentrate.resize(num_c_streams);
+    double total_recovery[N_COMPONENTS] = {0.0, 0.0, 0.0};
 
-    if (total_incoming_feed < 1e-12) {
-        for (int comp = 0; comp < 3; comp++) {
-            concentrate[0][comp] = 0.0;
-            tails[comp] = 0.0;
+    // Calculating mass partitioned into each concentrate stream
+    for (int out = 0; out < num_c_streams; out++) {
+        for (int comp = 0; comp < N_COMPONENTS; comp++) {
+            double R = calculate_recovery(out, comp, k_matrix);
+            concentrate[out][comp] = feed[comp] * R;
+            total_recovery[comp] += R;
         }
-        return;
     }
-
-    // Dynamic sizing based on competitive parameters
-    double total_slurry_mass = tank_volume * fluid_density;
-    double tau = total_slurry_mass / total_incoming_feed;
-
-    for (int comp = 0; comp < 3; comp++) {
-        double k = k_matrix[0][comp];
-        double recovery_fraction = (k * tau) / (1.0 + (k * tau));
-
-        concentrate[0][comp] = feed[comp] * recovery_fraction;
-        tails[comp] = feed[comp] * (1.0 - recovery_fraction);
+    // Tailings mass is the remainder after accounting for all recoveries.
+    for (int comp = 0; comp < N_COMPONENTS; comp++) {
+        tails[comp] = feed[comp] * (1.0 - total_recovery[comp]);
     }
 }

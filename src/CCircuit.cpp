@@ -428,20 +428,12 @@ const std::vector<int>& Circuit::output_destinations(int unit_id) const {
 
 // Helper function to set unit constants based on unit type (Type A or Type B)
 void Circuit::set_unit_constants(CUnit& unit, const Simulator_Parameters& simulator_parameters) {
+    (void)simulator_parameters;
+
     if (unit.n_outputs == 2) {
         unit.unit_type = 0;
-        for (int row = 0; row < 2; ++row) {
-            for (int comp = 0; comp < 3; ++comp) {
-                unit.k_matrix[row][comp] = simulator_parameters.k_TypeA[row][comp];
-            }
-        }
     } else if (unit.n_outputs == 3) {
         unit.unit_type = 1;
-        for (int row = 0; row < 2; ++row) {
-            for (int comp = 0; comp < 3; ++comp) {
-                unit.k_matrix[row][comp] = simulator_parameters.k_TypeB[row][comp];
-            }
-        }
     }
 }
 

@@ -14,7 +14,7 @@ Simulator_Parameters default_simulator_parameters;
 
 void CSimulator::calculate_all_outputs(Circuit& circuit, const Simulator_Parameters& params) {
     for (auto& unit : circuit.units) {
-        unit.calculate_outputs(params.tank_volume, params.fluid_density);
+        unit.calculate_outputs(default_simulator_parameters);
     }
 }
 
