@@ -1,6 +1,7 @@
 /**
  * @file CCircuit.cpp
- * @brief Implements the structural verification, graph traversal, and initialization routines for Circuit processing.
+ * @brief Implements the structural verification, graph traversal, and initialization routines for
+ * Circuit processing.
  * @author Cuprite Team (ACDS Palusznium Rush)
  * @date 2026-05-21
  */
@@ -22,21 +23,24 @@ namespace {
 
 /**
  * @struct ParsedCircuit
- * @brief Internal utility structure used to store intermediate parsing results from the raw vector format.
+ * @brief Internal utility structure used to store intermediate parsing results from the raw vector
+ * format.
  */
 struct ParsedCircuit {
-    int num_inputs = 0;      /**< Number of system input nodes. */
-    int num_units = 0;       /**< Total separation unit blocks parsed. */
-    int num_products = 0;    /**< Count of distinct product exit channels. */
-    int feed_dest = -1;      /**< The primary target unit ID receiving the source feed. */
-    std::vector<std::vector<int>> outputs; /**< Adjacency list storing downstream routing indices for each unit. */
+    int num_inputs = 0;   /**< Number of system input nodes. */
+    int num_units = 0;    /**< Total separation unit blocks parsed. */
+    int num_products = 0; /**< Count of distinct product exit channels. */
+    int feed_dest = -1;   /**< The primary target unit ID receiving the source feed. */
+    std::vector<std::vector<int>>
+        outputs; /**< Adjacency list storing downstream routing indices for each unit. */
 };
 
 /**
  * @brief Parses and validates a raw configuration vector representing circuit connections.
  * @param circuit_vector Flattened sequence containing metadata parameters and destination lists.
  * @param parsed Output container to store the successfully grouped topological data.
- * @return True if the layout matches formatting templates and satisfies size limits, false otherwise.
+ * @return True if the layout matches formatting templates and satisfies size limits, false
+ * otherwise.
  */
 bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
     if (circuit_vector.size() < 4) {
@@ -91,7 +95,8 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
 
         for (int out = 0; out < output_counts[unit]; ++out) {
             const int destination = circuit_vector[pos++];
-            // Guard conditions: check boundaries, enforce no self-loops, and block parallel duplicate edges
+            // Guard conditions: check boundaries, enforce no self-loops, and block parallel
+            // duplicate edges
             if (destination < 0 || destination >= one_past_last_product_id) {
                 return false;
             }
@@ -112,7 +117,8 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
 }  // namespace
 
 /**
- * @brief Global interface to audit basic reachability behaviors directly from a configuration vector.
+ * @brief Global interface to audit basic reachability behaviors directly from a configuration
+ * vector.
  */
 bool check_validity(std::span<const int> circuit_vector) {
     Circuit circuit;
@@ -364,8 +370,8 @@ std::vector<bool> Circuit::units_reachable_from_feed() const {
 }
 
 /**
- * @brief Traces graph pathways using stack-driven search loops to determine if an absolute connection
- * links the designated start unit to a target unit index.
+ * @brief Traces graph pathways using stack-driven search loops to determine if an absolute
+ * connection links the designated start unit to a target unit index.
  */
 bool Circuit::can_reach(int start, int target) const {
     if (!is_unit_id(start)) {
@@ -402,7 +408,8 @@ bool Circuit::can_reach(int start, int target) const {
 }
 
 /**
- * @brief Accumulates final sink IDs encountered during traversal routes stemming from the given cell block.
+ * @brief Accumulates final sink IDs encountered during traversal routes stemming from the given
+ * cell block.
  */
 std::vector<bool> Circuit::products_reachable_from_unit(int unit_id) const {
     std::vector<bool> product_seen(static_cast<std::size_t>(num_products()), false);
@@ -480,7 +487,8 @@ void Circuit::set_unit_constants(CUnit& unit, const Simulator_Parameters& simula
 }
 
 /**
- * @brief Recursively traverses and marks components to register downstream accessibility properties.
+ * @brief Recursively traverses and marks components to register downstream accessibility
+ * properties.
  */
 void Circuit::mark_units(int unit_num) {
     if (!is_unit_id(unit_num)) {

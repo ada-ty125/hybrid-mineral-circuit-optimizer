@@ -1,11 +1,12 @@
 /**
  * @file CCircuit.h
- * @brief Defines the Circuit structure and its simulation parameters for mineral processing networks.
+ * @brief Defines the Circuit structure and its simulation parameters for mineral processing
+ * networks.
  * @author Cuprite Team (ACDS Palusznium Rush)
  * @date 2026-05-21
  * * This file contains the declaration of the Circuit class and the Simulator_Parameters struct.
- * It manages the topology, initialization, and reachability analysis of a mineral separation circuit
- * composed of multiple CUnit entities connected in a directed graph layout.
+ * It manages the topology, initialization, and reachability analysis of a mineral separation
+ * circuit composed of multiple CUnit entities connected in a directed graph layout.
  */
 
 #pragma once
@@ -19,26 +20,32 @@
 
 /**
  * @struct Simulator_Parameters
- * @brief Holds configuration parameters, solver mechanics tolerances, and kinetic matrices for the simulation.
+ * @brief Holds configuration parameters, solver mechanics tolerances, and kinetic matrices for the
+ * simulation.
  */
 struct Simulator_Parameters {
     // Solver Mechanics
-    double tolerance = 1e-6;        /**< Convergence tolerance threshold for the simulation solver. */
-    int max_iterations = 10000;     /**< Maximum allowable iterations for the simulation loop. */
-    double min_denominator = 1e-12; /**< Smallest denominator value used to safeguard against division-by-zero errors. */
+    double tolerance = 1e-6;    /**< Convergence tolerance threshold for the simulation solver. */
+    int max_iterations = 10000; /**< Maximum allowable iterations for the simulation loop. */
+    double min_denominator =
+        1e-12; /**< Smallest denominator value used to safeguard against division-by-zero errors. */
 
     // Feed values
-    double palusznium_feed = 8.0;   /**< Feed rate of the target mineral 'Palusznium'. */
-    double gormanium_feed = 12.0;   /**< Feed rate of the companion mineral 'Gormanium'. */
-    double waste_feed = 80.0;       /**< Feed rate of the waste material/tailings. */
+    double palusznium_feed = 8.0; /**< Feed rate of the target mineral 'Palusznium'. */
+    double gormanium_feed = 12.0; /**< Feed rate of the companion mineral 'Gormanium'. */
+    double waste_feed = 80.0;     /**< Feed rate of the waste material/tailings. */
 
     // physical properties
-    double tank_volume = 10.0;      /**< Volume of each separation tank unit. */
-    double fluid_density = 3000.0;  /**< Density of the fluid processed within the circuit. */
+    double tank_volume = 10.0;     /**< Volume of each separation tank unit. */
+    double fluid_density = 3000.0; /**< Density of the fluid processed within the circuit. */
 
     // k matrix values based on Type
-    double k_TypeA[2][3] = {{0.008, 0.006, 0.0005}, {0.0, 0.0, 0.0}}; /**< Kinetic parameters matrix for Separation Unit Type A. */
-    double k_TypeB[2][3] = {{0.007, 0.001, 0.001}, {0.001, 0.006, 0.001}}; /**< Kinetic parameters matrix for Separation Unit Type B. */
+    double k_TypeA[2][3] = {
+        {0.008, 0.006, 0.0005},
+        {0.0, 0.0, 0.0}}; /**< Kinetic parameters matrix for Separation Unit Type A. */
+    double k_TypeB[2][3] = {
+        {0.007, 0.001, 0.001},
+        {0.001, 0.006, 0.001}}; /**< Kinetic parameters matrix for Separation Unit Type B. */
 };
 
 /**
@@ -53,7 +60,8 @@ class CSRGraph;
 class CSimulator;
 
 /**
- * @brief Global validity check function operating on an ESE Compressed Sparse Row (CSR) graph representation.
+ * @brief Global validity check function operating on an ESE Compressed Sparse Row (CSR) graph
+ * representation.
  * @param graph A reference to the CSRGraph topology.
  * @return True if the graph satisfies structural integrity constraints, false otherwise.
  */
@@ -61,7 +69,8 @@ bool check_validity(const ESE::CSRGraph& graph);
 
 /**
  * @class Circuit
- * @brief Represents a comprehensive processing circuit network, handling topological verification and material distribution.
+ * @brief Represents a comprehensive processing circuit network, handling topological verification
+ * and material distribution.
  */
 class Circuit {
   public:
@@ -139,10 +148,10 @@ class Circuit {
 
     /** @name Getters */
     ///@{
-    int num_inputs() const noexcept;     /**< Returns the count of input feeds. */
-    int num_units() const noexcept;      /**< Returns total separation units currently present. */
-    int num_products() const noexcept;   /**< Returns total available exit product routes. */
-    int feed_dest() const noexcept;      /**< Returns the entry unit index ID for the feed. */
+    int num_inputs() const noexcept;   /**< Returns the count of input feeds. */
+    int num_units() const noexcept;    /**< Returns total separation units currently present. */
+    int num_products() const noexcept; /**< Returns total available exit product routes. */
+    int feed_dest() const noexcept;    /**< Returns the entry unit index ID for the feed. */
 
     /**
      * @brief Retrieves the assigned downstream routing paths for a target unit.
@@ -158,7 +167,8 @@ class Circuit {
     static bool check_validity(int vector_size, int* circuit_vector);
 
     /**
-     * @brief Static validator assessing both vector routing layout and specific mechanical parameter bounds.
+     * @brief Static validator assessing both vector routing layout and specific mechanical
+     * parameter bounds.
      */
     static bool check_validity(int vector_size, int* circuit_vector, int unit_parameters_size,
                                double* unit_parameters);
@@ -168,16 +178,18 @@ class Circuit {
     friend class CSimulator;
 
   private:
-    int num_inputs_ = 0;                 /**< Internal counter tracking inputs. */
-    int num_units_ = 0;                  /**< Internal counter tracking units. */
-    int num_products_ = 0;               /**< Internal counter tracking exit points. */
-    int feed_dest_ = 0;                  /**< Target vector index indicating feed entrance point. */
+    int num_inputs_ = 0;   /**< Internal counter tracking inputs. */
+    int num_units_ = 0;    /**< Internal counter tracking units. */
+    int num_products_ = 0; /**< Internal counter tracking exit points. */
+    int feed_dest_ = 0;    /**< Target vector index indicating feed entrance point. */
 
-    std::vector<CUnit> units;            /**< Collection of separation units comprising this circuit. */
-    std::vector<int> empty_outputs_;     /**< Fallback array reference for disconnected/dead outputs. */
+    std::vector<CUnit> units;        /**< Collection of separation units comprising this circuit. */
+    std::vector<int> empty_outputs_; /**< Fallback array reference for disconnected/dead outputs. */
 
-    std::vector<std::array<double, N_COMPONENTS>> final_products; /**< Trackers recording steady-state mass vectors at product exits. */
-    std::array<double, N_COMPONENTS> final_tailings{};            /**< Trackers recording aggregate final tailings streams. */
+    std::vector<std::array<double, N_COMPONENTS>>
+        final_products; /**< Trackers recording steady-state mass vectors at product exits. */
+    std::array<double, N_COMPONENTS>
+        final_tailings{}; /**< Trackers recording aggregate final tailings streams. */
 
     /**
      * @brief Assigns specific chemical kinetic multipliers onto an isolated unit.
