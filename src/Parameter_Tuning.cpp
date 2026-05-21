@@ -55,26 +55,26 @@ void add_sweep_cases(std::vector<Sweep_Case>& cases, const Algorithm_Parameters&
 std::vector<Sweep_Case> build_control_variable_sweep(const Algorithm_Parameters& base) {
     std::vector<Sweep_Case> cases;
 
-    add_sweep_cases(cases, base, "max_iterations", std::vector<int>{300, 600, 1000, 1500},
-                    [](Algorithm_Parameters& p, int v) { p.max_iterations = v; });
-    add_sweep_cases(cases, base, "population_size", std::vector<int>{80, 120, 200, 320},
+    // add_sweep_cases(cases, base, "max_iterations", std::vector<int>{300, 400, 500, 600},
+    //                [](Algorithm_Parameters& p, int v) { p.max_iterations = v; });
+    add_sweep_cases(cases, base, "population_size", std::vector<int>{175, 200, 225, 250},
                     [](Algorithm_Parameters& p, int v) { p.population_size = v; });
-    add_sweep_cases(cases, base, "crossover_probability",
-                    std::vector<double>{0.65, 0.75, 0.85, 0.95},
-                    [](Algorithm_Parameters& p, double v) { p.crossover_probability = v; });
+    // add_sweep_cases(cases, base, "crossover_probability",
+    //                std::vector<double>{0.65, 0.70, 0.75, 0.80},
+    //                [](Algorithm_Parameters& p, double v) { p.crossover_probability = v; });
     add_sweep_cases(cases, base, "mutation_probability",
-                    std::vector<double>{0.02, 0.05, 0.10, 0.18},
+                    std::vector<double>{0.10, 0.125, 0.15, 0.175},
                     [](Algorithm_Parameters& p, double v) { p.mutation_probability = v; });
-    add_sweep_cases(cases, base, "early_stop_patience", std::vector<int>{50, 100, 180, 300},
+    add_sweep_cases(cases, base, "early_stop_patience", std::vector<int>{50, 75, 100, 125},
                     [](Algorithm_Parameters& p, int v) { p.early_stop_patience = v; });
-    add_sweep_cases(cases, base, "tournament_size", std::vector<int>{2, 3, 5, 7},
+    add_sweep_cases(cases, base, "tournament_size", std::vector<int>{3, 4, 5, 6},
                     [](Algorithm_Parameters& p, int v) { p.tournament_size = v; });
-    add_sweep_cases(cases, base, "num_crossover_points", std::vector<int>{1, 2, 3, 4},
+    add_sweep_cases(cases, base, "num_crossover_points", std::vector<int>{4, 8, 16, 32},
                     [](Algorithm_Parameters& p, int v) { p.num_crossover_points = v; });
-    add_sweep_cases(cases, base, "gaussian_sigma", std::vector<double>{0.05, 0.10, 0.20, 0.35},
+    add_sweep_cases(cases, base, "gaussian_sigma", std::vector<double>{0.02, 0.03, 0.04, 0.05},
                     [](Algorithm_Parameters& p, double v) { p.gaussian_sigma = v; });
-    add_sweep_cases(cases, base, "elite_count", std::vector<int>{0, 1, 2, 5},
-                    [](Algorithm_Parameters& p, int v) { p.elite_count = v; });
+    // add_sweep_cases(cases, base, "elite_count", std::vector<int>{1, 2, 3, 4},
+    //                [](Algorithm_Parameters& p, int v) { p.elite_count = v; });
 
     return cases;
 }
@@ -128,9 +128,9 @@ void write_summary(const std::string& path, const std::vector<Run_Record>& recor
         }
         double stddev = std::sqrt(variance / runs);
 
-        out << records[i].parameter << "," << records[i].value << "," << runs << ","
-            << successes << "," << std::setprecision(12) << mean_fitness << ","
-            << best_fitness << "," << stddev << "," << (sum_runtime / runs) << "\n";
+        out << records[i].parameter << "," << records[i].value << "," << runs << "," << successes
+            << "," << std::setprecision(12) << mean_fitness << "," << best_fitness << "," << stddev
+            << "," << (sum_runtime / runs) << "\n";
 
         i = j;
     }
@@ -182,7 +182,8 @@ int main(int argc, char* argv[]) {
     std::cout << "Raw output: " << raw_output_path << "\n";
     std::cout << "Summary output: " << summary_output_path << "\n";
     std::cout << "Note: gaussian_sigma affects only continuous genes in the current GA path.\n";
-    std::cout << "Note: elite_count is recorded, but the current GA replacement step does not use it.\n";
+    std::cout
+        << "Note: elite_count is recorded, but the current GA replacement step does not use it.\n";
 
     for (const Sweep_Case& sweep_case : cases) {
         std::cout << "\n[" << sweep_case.name << " = " << sweep_case.value_label << "]\n";
