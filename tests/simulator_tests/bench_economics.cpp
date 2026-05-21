@@ -1,7 +1,10 @@
-// bench_economics.cpp
-//
-// Times economic_value and writes a CSV under tests/bin/benchmarks/ so we
-// can compare later op-cost models against this baseline.
+/**
+ * @file bench_economics.cpp
+ * @brief Benchmarks economic scoring helpers and exports timing CSVs.
+ *
+ * The benchmark records results under `tests/bin/benchmarks/` so later
+ * operating-cost models can be compared against this baseline.
+ */
 
 #include <algorithm>
 #include <chrono>

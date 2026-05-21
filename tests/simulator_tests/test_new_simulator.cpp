@@ -1,4 +1,10 @@
-// tests/simulator_tests/test_simulator_refactor.cpp
+/**
+ * @file test_new_simulator.cpp
+ * @brief Regression tests for the refactored circuit initialization path.
+ *
+ * The test covers valid initialization, invalid topology rejection, parameter
+ * sensitivity, and a known five-unit example circuit.
+ */
 
 #include <cassert>
 #include <cmath>

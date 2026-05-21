@@ -1,3 +1,11 @@
+/**
+ * @file test_genetic_algorithm.cpp
+ * @brief Exercises the GA on a small travelling-salesperson-style problem.
+ *
+ * The test verifies that the discrete optimizer can generate, mutate, validate,
+ * and improve a compact permutation-like chromosome.
+ */
+
 #include <algorithm>
 #include <cmath>
 #include <functional>

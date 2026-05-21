@@ -1,3 +1,12 @@
+/**
+ * @file Genetic_Algorithm.cpp
+ * @brief Implements the project's configurable genetic algorithm operators.
+ *
+ * The implementation includes tournament selection, multi-point crossover,
+ * mutation, OpenMP-parallel offspring evaluation, and convenience wrappers for
+ * discrete, continuous, and hybrid optimization problems.
+ */
+
 #include "Genetic_Algorithm.h"
 #include <algorithm>
 #include <cmath>

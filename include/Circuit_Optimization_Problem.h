@@ -1,3 +1,12 @@
+/**
+ * @file Circuit_Optimization_Problem.h
+ * @brief Declares the high-level circuit optimization workflow.
+ *
+ * This interface packages GA hyperparameters, optimization mode, visualization
+ * options, and run metadata behind a single callable entry point used by the
+ * command-line executable and tuning tools.
+ */
+
 #pragma once
 
 #include <string>

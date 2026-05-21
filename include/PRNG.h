@@ -1,3 +1,12 @@
+/**
+ * @file PRNG.h
+ * @brief Declares the default pseudo-random number generator implementation.
+ *
+ * `DefaultRandomNumberGenerator` implements the project `RandomNumberGenerator`
+ * interface using a lightweight linear congruential generator for legacy GA
+ * code paths.
+ */
+
 #pragma once
 
 #include "RequiredFunctions.h"

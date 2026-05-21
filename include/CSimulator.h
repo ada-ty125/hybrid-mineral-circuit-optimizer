@@ -1,6 +1,10 @@
-/** header file for the circuit simulator
+/**
+ * @file CSimulator.h
+ * @brief Declares the steady-state circuit simulation interface.
  *
- * This header file defines the function that will be used to evaluate the circuit
+ * This header exposes helper routines for evaluating a parsed circuit,
+ * calculating unit outputs, propagating material streams, and checking
+ * convergence against the default simulator parameters.
  */
 
 #pragma once

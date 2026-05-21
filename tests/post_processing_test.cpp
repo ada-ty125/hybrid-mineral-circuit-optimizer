@@ -1,3 +1,11 @@
+/**
+ * @file post_processing_test.cpp
+ * @brief Verifies DOT post-processing output for circuit vectors and graphs.
+ *
+ * The test writes small visualizations and checks that expected nodes and
+ * edges are present in the generated DOT text.
+ */
+
 #include <fstream>
 #include <iostream>
 #include <span>

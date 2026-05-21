@@ -1,3 +1,11 @@
+/**
+ * @file test_cunit.cpp
+ * @brief Unit tests for separator cell mass balance and recovery calculations.
+ *
+ * The checks cover Type A and Type B mass conservation, recovery values, and
+ * zero-feed behavior for individual `CUnit` instances.
+ */
+
 #include <cassert>
 #include <cmath>
 #include <iostream>

@@ -1,3 +1,12 @@
+/**
+ * @file Parameter_Tuning.cpp
+ * @brief Runs control-variable sweeps over GA hyperparameters.
+ *
+ * The executable records repeated optimization runs, writes raw CSV output,
+ * and summarizes parameter-level statistics for fixed or swapable circuit
+ * optimization modes.
+ */
+
 #include <cmath>
 #include <algorithm>
 #include <fstream>

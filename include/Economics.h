@@ -1,13 +1,11 @@
-// Economics.h
-//
-// Once the solver has flows in the two product streams, the GA needs one
-// fitness number in GBP/s. This header does that conversion.
-//
-// All £/kg numbers sit in EconomicConstants (appendix defaults). Change them
-// there when we sweep prices in the sensitivity study.
-//
-// Unit running cost is pluggable via OpCostFn. Today that is fixed_op_cost;
-// a volume power-law can be added later as another function.
+/**
+ * @file Economics.h
+ * @brief Converts simulated product streams into an economic fitness value.
+ *
+ * Once the solver has flows in the two product streams, the GA needs one
+ * fitness number in GBP/s. Price coefficients live in `EconomicConstants`, and
+ * unit operating cost is pluggable through `OpCostFn`.
+ */
 
 #pragma once
 

@@ -1,3 +1,11 @@
+/**
+ * @file test_circuit_simulator.cpp
+ * @brief Regression test for graph-based circuit performance evaluation.
+ *
+ * The test builds a small CSR graph, evaluates it through the simulator, and
+ * checks the score against a fixed reference value.
+ */
+
 #include <cmath>
 #include <iostream>
 
