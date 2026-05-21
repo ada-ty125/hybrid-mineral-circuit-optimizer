@@ -4,7 +4,7 @@
  * @author Cuprite Team (ACDS Palusznium Rush)
  * @date 2026-05-21
  * * This file contains the declaration of the Circuit class and the Simulator_Parameters struct.
- * It manages the topology, initialization, and reachability analysis of a mineral separation circuit 
+ * It manages the topology, initialization, and reachability analysis of a mineral separation circuit
  * composed of multiple CUnit entities connected in a directed graph layout.
  */
 
@@ -26,16 +26,16 @@ struct Simulator_Parameters {
     double tolerance = 1e-6;        /**< Convergence tolerance threshold for the simulation solver. */
     int max_iterations = 10000;     /**< Maximum allowable iterations for the simulation loop. */
     double min_denominator = 1e-12; /**< Smallest denominator value used to safeguard against division-by-zero errors. */
-    
+
     // Feed values
     double palusznium_feed = 8.0;   /**< Feed rate of the target mineral 'Palusznium'. */
     double gormanium_feed = 12.0;   /**< Feed rate of the companion mineral 'Gormanium'. */
     double waste_feed = 80.0;       /**< Feed rate of the waste material/tailings. */
-    
+
     // physical properties
     double tank_volume = 10.0;      /**< Volume of each separation tank unit. */
     double fluid_density = 3000.0;  /**< Density of the fluid processed within the circuit. */
-    
+
     // k matrix values based on Type
     double k_TypeA[2][3] = {{0.008, 0.006, 0.0005}, {0.0, 0.0, 0.0}}; /**< Kinetic parameters matrix for Separation Unit Type A. */
     double k_TypeB[2][3] = {{0.007, 0.001, 0.001}, {0.001, 0.006, 0.001}}; /**< Kinetic parameters matrix for Separation Unit Type B. */

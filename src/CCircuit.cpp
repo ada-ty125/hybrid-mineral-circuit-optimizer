@@ -364,7 +364,7 @@ std::vector<bool> Circuit::units_reachable_from_feed() const {
 }
 
 /**
- * @brief Traces graph pathways using stack-driven search loops to determine if an absolute connection 
+ * @brief Traces graph pathways using stack-driven search loops to determine if an absolute connection
  * links the designated start unit to a target unit index.
  */
 bool Circuit::can_reach(int start, int target) const {

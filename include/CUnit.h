@@ -4,7 +4,7 @@
  * @author Cuprite Team (ACDS Palusznium Rush)
  * @date 2026-05-21
  * * This file contains the CUnit class declaration, which encapsulates the physical properties,
- * feed states, kinetic parameters, and stream calculations (concentrate and tailings) for a single 
+ * feed states, kinetic parameters, and stream calculations (concentrate and tailings) for a single
  * cell inside the simulation network.
  */
 
@@ -24,8 +24,8 @@ struct Simulator_Parameters;
 /**
  * @class CUnit
  * @brief Represents a single separation cell/unit within the mineral processing flowsheet.
- * * Each unit processes an incoming aggregate feed stream and splits it into multiple 
- * downstream output destinations (concentrate streams and a tailings stream) based on its 
+ * * Each unit processes an incoming aggregate feed stream and splits it into multiple
+ * downstream output destinations (concentrate streams and a tailings stream) based on its
  * residence time and recovery physics.
  */
 class CUnit {
@@ -42,7 +42,7 @@ class CUnit {
      * * Maps the output streams to their destination unit IDs or final product IDs.
      */
     std::vector<int> output;
-    
+
     int unit_type = 0;  /**< Technical type classification of the unit: 0 = Type A, 1 = Type B. */
 
     /** @name Current Iteration Feed States */
@@ -117,7 +117,7 @@ class CUnit {
     void calculate_outputs(const Simulator_Parameters& params);
 
     /**
-     * @brief Resets all current and historical feed trackers back to zero. 
+     * @brief Resets all current and historical feed trackers back to zero.
      * * Typically invoked to clean up unit states before running a fresh iterative cycle.
      */
     void clear_feeds();
