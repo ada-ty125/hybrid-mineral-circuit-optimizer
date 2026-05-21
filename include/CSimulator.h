@@ -8,6 +8,8 @@
 #include "CSRGraph.h"
 #include "RequiredFunctions.h"
 #include "CCircuit.h"
+#include <span>
+#include <vector>
 
 class CSimulator {
   public:
@@ -23,10 +25,10 @@ class CSimulator {
     static void clear_all_feeds(Circuit& circuit);
 
     static void add_to_unit_feed(Circuit& circuit, int unit_idx,
-                                 const std::array<double, N_COMPONENTS>& material);
+                                 const std::vector<double>& material);
 
     static void add_to_unit_feed(Circuit& circuit, int unit_idx,
-                                 const double material[N_COMPONENTS]);
+                                 const std::vector<double>& material);
 
     static void clear_final_outputs(Circuit& circuit);
 

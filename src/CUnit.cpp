@@ -13,12 +13,7 @@ CUnit::CUnit() {
  * Resets the current incoming mass feed components to zero.
  */
 void CUnit::clear_feeds() {
-    for (int i = 0; i < N_COMPONENTS; i++) {
-        feed[i] = 0.0;
-    }
-    feed_P = 0.0;
-    feed_G = 0.0;
-    feed_W = 0.0;
+    std::fill(feed.begin(), feed.end(), 0.0);
 }
 
 /**
@@ -27,8 +22,8 @@ void CUnit::clear_feeds() {
  */
 double CUnit::total_feed() const {
     double total_feed = 0.0;
-    for (int i = 0; i < N_COMPONENTS; i++) {
-        total_feed += feed[i];
+    for (double component_flow : feed) {
+        total_feed += component_flow;
     }
     return total_feed;
 }
@@ -38,15 +33,15 @@ double CUnit::total_feed() const {
  * Uses the relation: tau = (phi * V) / Q, where Q is volumetric flow rate.
  * @return Residence time in seconds.
  */
-double CUnit::calculate_residence_time() const {
+double CUnit::calculate_residence_time(const Simulator_Parameters& params) const {
     double total_mass_flow = total_feed();
 
     // Prevent division by zero if the tank has no incoming feed
-    if (total_mass_flow < 1e-10) {
-        total_mass_flow = 1e-10;
+    if (total_mass_flow < params.min_denominator) {
+        total_mass_flow = params.min_denominator;
     }
-    double total_vol_flow = total_mass_flow / rho;
-    residence_time = (phi * volume) / total_vol_flow;
+    double total_vol_flow = total_mass_flow / params.fluid_density;
+    residence_time = (params.phi * params.tank_volume) / total_vol_flow;
     return residence_time;
 }
 
@@ -57,8 +52,8 @@ double CUnit::calculate_residence_time() const {
  * @param component Index of the chemical component (Pal, Gor, Waste).
  * @return Fractional recovery value between 0.0 and 1.0.
  */
-double CUnit::calculate_recovery(int st_idx, int component, const double k_matrix[2][3]) const {
-    double tau = calculate_residence_time();
+double CUnit::calculate_recovery(int st_idx, int component, const std::vector<std::vector<double>>& k_matrix, 
+                                 double tau) const {
     double summation = 0.0;
     int num_c_stream = n_outputs - 1;
 
@@ -76,21 +71,36 @@ double CUnit::calculate_recovery(int st_idx, int component, const double k_matri
  * concentrate streams and applies mass conservation to calculate the tailings.
  */
 void CUnit::calculate_outputs(const Simulator_Parameters& params) {
+    int n_comp = params.n_components;
     int num_c_streams = n_outputs - 1;
-    concentrate.resize(num_c_streams);
-    double total_recovery[N_COMPONENTS] = {0.0, 0.0, 0.0};
+    concentrate.resize(num_c_streams, std::vector<double>(n_comp, 0.0));
+    tails.resize(n_comp, 0.0);
+
+    double total_incoming_feed = total_feed();
+
+    if (total_incoming_feed < params.min_denominator) {
+        for (int out = 0; out < num_c_streams; out++) {
+            std::fill(concentrate[out].begin(), concentrate[out].end(), 0.0);
+        }
+        std::fill(tails.begin(), tails.end(), 0.0);
+        return;
+    }
+
+    double tau = calculate_residence_time(params);
+
+    const auto& k_matrix = (unit_type == 0) ? params.k_TypeA : params.k_TypeB
+    std::vector<double> total_recovery(n_comp, 0.0);
 
     // Calculating mass partitioned into each concentrate stream
     for (int out = 0; out < num_c_streams; out++) {
-        for (int comp = 0; comp < N_COMPONENTS; comp++) {
-            double R = unit_type == 0 ? calculate_recovery(out, comp, params.k_TypeA)
-                                      : calculate_recovery(out, comp, params.k_TypeB);
+        for (int comp = 0; comp < n_comp; comp++) {
+            double R = calculate_recovery(out, comp, k_matrix, tau);
             concentrate[out][comp] = feed[comp] * R;
             total_recovery[comp] += R;
         }
     }
     // Tailings mass is the remainder after accounting for all recoveries.
-    for (int comp = 0; comp < N_COMPONENTS; comp++) {
+    for (int comp = 0; comp < n_comp; comp++) {
         tails[comp] = feed[comp] * (1.0 - total_recovery[comp]);
     }
 }

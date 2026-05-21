@@ -19,16 +19,18 @@ struct Simulator_Parameters {
     double tolerance = 1e-6;
     int max_iterations = 10000;
     double min_denominator = 1e-12;
-    // Feed values
-    double palusznium_feed = 8.0;
-    double gormanium_feed = 12.0;
-    double waste_feed = 80.0;
     // physical properties
     double tank_volume = 10.0;
     double fluid_density = 3000.0;
+    double phi = 0.1;
+    //Components
+    int n_components = 3; 
+    std::vector<std::string> component_names = {"Palusznium", "Gormanium", "Waste"};
+    // A single vector handles all component feed inputs
+    std::vector<double> input_feed_rates = {8.0, 12.0, 80.0};
     // k matrix values based on Type
-    double k_TypeA[2][3] = {{0.008, 0.006, 0.0005}, {0.0, 0.0, 0.0}};
-    double k_TypeB[2][3] = {{0.007, 0.001, 0.001}, {0.001, 0.006, 0.001}};
+    std::vector<std::vector<double>> k_TypeA = { {0.008, 0.006, 0.0005}, {0.0,   0.0,   0.0} };
+    std::vector<std::vector<double>> k_TypeB = { {0.007, 0.001, 0.001},  {0.001, 0.006, 0.001} };
 };
 extern Simulator_Parameters default_simulator_parameters;
 namespace ESE {
@@ -80,8 +82,8 @@ class Circuit {
     std::vector<CUnit> units;
     std::vector<int> empty_outputs_;
 
-    std::vector<std::array<double, N_COMPONENTS>> final_products;
-    std::array<double, N_COMPONENTS> final_tailings{};
+    std::vector<std::vector<double>> final_products;
+    std::vector<double> final_tailings;
 
     void set_unit_constants(CUnit& unit, const Simulator_Parameters& params);
     void mark_units(int unit_num);

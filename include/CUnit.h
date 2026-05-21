@@ -7,60 +7,34 @@
 
 #include <array>
 #include <vector>
+#include "CCircuit.h"
 
-constexpr int N_COMPONENTS = 3;
 struct Simulator_Parameters;
 
 class CUnit {
   public:
     CUnit();
 
-    int n_outputs;  // The number of outputs from this unit
+    int n_outputs;
+    int unit_type;
 
-    // Output from this unit where [0] = Palusznium, [1] = Gormanium, [2] = Waste
     std::vector<int> output;
-    int unit_type = 0;  // 0 = Type A, 1 = Type B
-
-    // Current feed entering this unit
-    // [0] = Palusznium
-    // [1] = Gormanium
-    // [2] = Waste
-    double feed[N_COMPONENTS] = {0.0, 0.0, 0.0};
-    double feed_P = 0.0;
-    double feed_G = 0.0;
-    double feed_W = 0.0;
-
-    // Feed from previous iteration
-    double old_feed[N_COMPONENTS] = {0.0, 0.0, 0.0};
-    double old_feed_P = 0.0;
-    double old_feed_G = 0.0;
-    double old_feed_W = 0.0;
-
-    // Concentrate output streams
-    // concentrate[i][j]
-    // i = output stream number
-    // j = component
-    std::vector<std::array<double, N_COMPONENTS>> concentrate;
-
-    // Tailings stream
-    double tails[N_COMPONENTS] = {0.0, 0.0, 0.0};
-
-    // Used for validity checking
-    bool mark = false;
-    bool reaches_palusznium = false;
-    bool reaches_gormanium = false;
-    bool reaches_tailings = false;
+    std::vector<double> feed;
+    std::vector<double> old_feed;
+    std::vector<std::vector<double>> concentrate;
+    std::vector<double> tails;
+    std::vector<double> total_recovery;
 
     // Constants for calculations
-    double volume = 10.0;
-    double phi = 0.1;
-    double rho = 3000.0;
     mutable double residence_time = 0.0;
 
     // Simulation functions
     double total_feed() const;
-    double calculate_residence_time() const;
-    double calculate_recovery(int st_idx, int component, const double k_matrix[2][3]) const;
+    double calculate_residence_time(const Simulator_Parameters& params) const;
+
+    double calculate_recovery(int st_idx, int component, 
+                             const std::vector<std::vector<double>>& k_matrix, 
+                             double ta) const;
 
     void calculate_outputs(const Simulator_Parameters& params);
 

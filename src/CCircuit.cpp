@@ -92,7 +92,7 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
 
 bool check_validity(std::span<const int> circuit_vector) {
     Circuit circuit;
-    if (!circuit.initialise(circuit_vector)) {
+    if (!circuit.initialise(circuit_vector, default_simulator_parameters)) {
         return false;
     }
 
@@ -263,8 +263,7 @@ Circuit::Circuit(int num_units) {
     }
 }
 
-bool Circuit::initialise(std::span<const int> circuit_vector,
-                         const Simulator_Parameters& simulator_parameters) {
+bool Circuit::initialise(std::span<const int> circuit_vector, const Simulator_Parameters& simulator_parameters) {
     ParsedCircuit parsed;
     if (!parse_circuit(circuit_vector, parsed)) {
         return false;
@@ -428,15 +427,24 @@ const std::vector<int>& Circuit::output_destinations(int unit_id) const {
 
 // Helper function to set unit constants based on unit type (Type A or Type B)
 void Circuit::set_unit_constants(CUnit& unit, const Simulator_Parameters& simulator_parameters) {
-    unit.volume = simulator_parameters.tank_volume;
-    unit.rho = simulator_parameters.fluid_density;
-
     if (unit.n_outputs == 2) {
         unit.unit_type = 0;
-    } else if (unit.n_outputs == 3) {
+        for (int row = 0; row < 2; ++row) {
+            for (int comp = 0; comp < 3; ++comp) {
+                unit.k_matrix[row][comp] = simulator_parameters.k_TypeA[row][comp];
+            }
+        }
+    }
+    else if (unit.n_outputs == 3) {
         unit.unit_type = 1;
+        for (int row = 0; row < 2; ++row) {
+            for (int comp = 0; comp < 3; ++comp) {
+                unit.k_matrix[row][comp] = simulator_parameters.k_TypeB[row][comp];
+            }
+        }
     }
 }
+
 
 void Circuit::mark_units(int unit_num) {
     if (!is_unit_id(unit_num)) {
@@ -455,3 +463,4 @@ void Circuit::mark_units(int unit_num) {
         }
     }
 }
+
