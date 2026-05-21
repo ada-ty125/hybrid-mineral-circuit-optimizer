@@ -34,12 +34,20 @@ set_target_properties( circuitSimulator
 )
 
 # build the executable
-add_executable(Circuit_Optimizer main.cpp)
+add_executable(Circuit_Optimizer main.cpp Circuit_Optimization_Problem.cpp)
 
 # Link extra libraries and ensure OpenMP runtime is explicitly linked to the executable
 target_link_libraries(Circuit_Optimizer PUBLIC circuitSimulator esegraph geneticAlgorithm OpenMP::OpenMP_CXX)
 
 set_target_properties( Circuit_Optimizer
+    PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+add_executable(Parameter_Tuning Parameter_Tuning.cpp Circuit_Optimization_Problem.cpp)
+target_link_libraries(Parameter_Tuning PUBLIC circuitSimulator esegraph geneticAlgorithm OpenMP::OpenMP_CXX)
+
+set_target_properties( Parameter_Tuning
     PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )

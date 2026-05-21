@@ -8,14 +8,14 @@
 
 struct Algorithm_Parameters {
     int max_iterations = 1000;
-    int population_size = 200;
-    double crossover_probability = 0.85;
-    double mutation_probability = 0.05;
+    int population_size = 100;
+    double crossover_probability = 0.75;
+    double mutation_probability = 0.10;
     int early_stop_patience = 100;
     int tournament_size = 3;
-    int num_crossover_points = 2;
-    double gaussian_sigma = 0.1;
-    int elite_count = 1;
+    int num_crossover_points = 4;
+    double gaussian_sigma = 0.05;
+    int elite_count = 2;
 };
 
 extern Algorithm_Parameters default_ga_parameters;
