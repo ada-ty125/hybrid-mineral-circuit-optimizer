@@ -145,7 +145,7 @@ void crossover_circuit_vectors(
 // Can also use Python if your team prefers.
 
 /**
- * @brief Write a Graphviz DOT visualisation for an encoded circuit vector.
+ * @brief Write a visualisation for an encoded circuit vector.
  *
  * The circuit vector is expected to follow the project layout:
  * `[num_inputs, num_units, num_products, unit_output_counts..., feed_dest,
@@ -156,19 +156,23 @@ void crossover_circuit_vectors(
  * are written as DOT graphs containing an error node so failed post-processing
  * remains inspectable.
  *
+ * If `filename` ends in `.png`, Graphviz is used to render a PNG image.
+ * Otherwise the output is written as Graphviz DOT text.
+ *
  * @param values Circuit vector to visualise.
- * @param filename Path to the DOT file to write.
+ * @param filename Path to the output file to write.
  */
 void plot_span(std::span<const int> const values, const char* filename);
 
 /**
- * @brief Write a Graphviz DOT visualisation for an ESE graph.
+ * @brief Write a visualisation for an ESE graph.
  *
  * Root nodes are rendered as feed inputs, dynamic nodes as processing units,
- * and sink nodes as product/output nodes. The output file is DOT text and can
- * be rendered with Graphviz, for example `dot -Tpng graph.dot -o graph.png`.
+ * and sink nodes as product/output nodes. If `filename` ends in `.png`,
+ * Graphviz is used to render a PNG image. Otherwise the output is written as
+ * Graphviz DOT text.
  *
  * @param graph ESE graph to visualise.
- * @param filename Path to the DOT file to write.
+ * @param filename Path to the output file to write.
  */
 void plot_graph(const Graph& graph, const char* filename);
