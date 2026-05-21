@@ -180,7 +180,7 @@ bool CSimulator::has_converged(const Circuit& circuit,
     int n_comp = simulator_parameters.n_components;
     for (const auto& unit : circuit.units) {
         if (static_cast<int>(unit.feed.size()) < n_comp) return false;
-        
+
         for (int comp = 0; comp < n_comp; ++comp) {
             double old_val = unit.old_feed[comp];
             double new_val = unit.feed[comp];
@@ -260,7 +260,8 @@ double CSimulator::evaluate(Circuit& circuit, const Simulator_Parameters& simula
         }
     }
 
-    return cuprite::worst_case_value(simulator_parameters.input_feed_rates.back(), cuprite::default_economics);
+    return cuprite::worst_case_value(simulator_parameters.input_feed_rates.back(),
+                                     cuprite::default_economics);
 }
 
 /**

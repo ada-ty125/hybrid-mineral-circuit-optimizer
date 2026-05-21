@@ -5,6 +5,8 @@
 #include "CUnit.h"
 #include "CCircuit.h"
 
+Simulator_Parameters params;
+
 bool is_close(double a, double b, double epsilon = 1e-6) { return std::abs(a - b) < epsilon; }
 
 void test_type_a_mass_conservation() {
@@ -29,7 +31,7 @@ void test_type_a_mass_conservation() {
     unit.calculate_outputs(test_params);
 
     // Test 1: Mass Conservation Rule (Total Input == Total Output)
-    for (int comp = 0; comp < N_COMPONENTS; comp++) {
+    for (int comp = 0; comp < params.n_components; comp++) {
         double input = unit.feed[comp];
         double output = unit.concentrate[0][comp] + unit.tails[comp];
         assert(is_close(input, output) && "Type A Mass balance broken!");
@@ -62,7 +64,7 @@ void test_type_b_competitive_math() {
     unit.calculate_outputs(test_params);
 
     // Test 2: Mass Conservation across 3 physical output streams
-    for (int comp = 0; comp < N_COMPONENTS; comp++) {
+    for (int comp = 0; comp < params.n_components; comp++) {
         double input = unit.feed[comp];
         double output = unit.concentrate[0][comp] + unit.concentrate[1][comp] + unit.tails[comp];
         assert(is_close(input, output) && "Type B Mass balance broken!");
