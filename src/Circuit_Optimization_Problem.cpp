@@ -187,8 +187,7 @@ void print_success(const std::string& mode, const std::vector<int>& full_circuit
 Circuit_Optimization_Result run_circuit_optimization(const Algorithm_Parameters& params,
                                                      const std::string& mode,
                                                      const std::string& output_image,
-                                                     bool render_output,
-                                                     bool verbose) {
+                                                     bool render_output, bool verbose) {
     Circuit_Optimization_Result result;
     auto start_time = std::chrono::high_resolution_clock::now();
 
@@ -265,9 +264,9 @@ Circuit_Optimization_Result run_circuit_optimization(const Algorithm_Parameters&
             return check_validity(std::span<const int>(full));
         };
 
-        result.best_fitness = optimize_discrete(base_prefix, result.best_discrete_solution,
-                                               wrapped_performance, wrapped_validity,
-                                               ga_functions, params);
+        result.best_fitness =
+            optimize_discrete(base_prefix, result.best_discrete_solution, wrapped_performance,
+                              wrapped_validity, ga_functions, params);
 
         if (result.best_fitness > -30000.0 && !result.best_discrete_solution.empty()) {
             result.best_full_circuit = pack_swapable_for_eval(result.best_discrete_solution);
@@ -298,4 +297,3 @@ Circuit_Optimization_Result run_circuit_optimization(const Algorithm_Parameters&
 
     return result;
 }
-
