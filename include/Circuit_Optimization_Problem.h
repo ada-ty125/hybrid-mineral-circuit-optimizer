@@ -18,4 +18,3 @@ Circuit_Optimization_Result run_circuit_optimization(const Algorithm_Parameters&
                                                      const std::string& output_image = "",
                                                      bool render_output = false,
                                                      bool verbose = false);
-
