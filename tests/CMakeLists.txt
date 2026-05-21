@@ -44,7 +44,17 @@ add_test(NAME post_processing_test COMMAND post_processing_test
 set_property(TEST post_processing_test PROPERTY LABELS post_processing)
 
 
-add_test(NAME executable COMMAND Circuit_Optimizer)
+set(CUPRITE_EXECUTABLE_TEST_THREADS "4" CACHE STRING
+    "OpenMP threads used by the Circuit_Optimizer executable test")
+add_test(NAME executable
+         COMMAND ${CMAKE_COMMAND} -E env
+             OMP_NUM_THREADS=${CUPRITE_EXECUTABLE_TEST_THREADS}
+             OMP_DYNAMIC=FALSE
+             $<TARGET_FILE:Circuit_Optimizer>
+             16 3 0.935 0.214 2 3 1 1
+             fixed
+             "${CMAKE_BINARY_DIR}/tests/bin/executable_smoke.png")
+set_property(TEST executable PROPERTY PROCESSORS ${CUPRITE_EXECUTABLE_TEST_THREADS})
 
 # test_economics needs the reference CSV available at runtime under data/
 # relative to its working directory.
