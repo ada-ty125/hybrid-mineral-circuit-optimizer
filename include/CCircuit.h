@@ -14,9 +14,7 @@
 #include <array>
 #include <span>
 #include <vector>
-
-#include "CUnit.h"
-#include "RequiredFunctions.h"
+#include <string>
 
 /**
  * @struct Simulator_Parameters
@@ -25,33 +23,30 @@
  */
 struct Simulator_Parameters {
     // Solver Mechanics
-    double tolerance = 1e-6;    /**< Convergence tolerance threshold for the simulation solver. */
-    int max_iterations = 10000; /**< Maximum allowable iterations for the simulation loop. */
-    double min_denominator =
-        1e-12; /**< Smallest denominator value used to safeguard against division-by-zero errors. */
-
-    // Feed values
-    double palusznium_feed = 8.0; /**< Feed rate of the target mineral 'Palusznium'. */
-    double gormanium_feed = 12.0; /**< Feed rate of the companion mineral 'Gormanium'. */
-    double waste_feed = 80.0;     /**< Feed rate of the waste material/tailings. */
-
+    double tolerance = 1e-6;
+    int max_iterations = 10000;
+    double min_denominator = 1e-12;
     // physical properties
-    double tank_volume = 10.0;     /**< Volume of each separation tank unit. */
-    double fluid_density = 3000.0; /**< Density of the fluid processed within the circuit. */
-
+    double tank_volume = 10.0;
+    double fluid_density = 3000.0;
+    double phi = 0.1;
+    // Components
+    int n_components = 3;
+    std::vector<std::string> component_names = {"Palusznium", "Gormanium", "Waste"};
+    // A single vector handles all component feed inputs
+    std::vector<double> input_feed_rates = {8.0, 12.0, 80.0};
     // k matrix values based on Type
-    double k_TypeA[2][3] = {
-        {0.008, 0.006, 0.0005},
-        {0.0, 0.0, 0.0}}; /**< Kinetic parameters matrix for Separation Unit Type A. */
-    double k_TypeB[2][3] = {
-        {0.007, 0.001, 0.001},
-        {0.001, 0.006, 0.001}}; /**< Kinetic parameters matrix for Separation Unit Type B. */
+    std::vector<std::vector<double>> k_TypeA = {{0.008, 0.006, 0.0005}, {0.0, 0.0, 0.0}};
+    std::vector<std::vector<double>> k_TypeB = {{0.007, 0.001, 0.001}, {0.001, 0.006, 0.001}};
 };
 
 /**
  * @brief Global instantiation of default simulator constants.
  */
 extern Simulator_Parameters default_simulator_parameters;
+
+#include "CUnit.h"
+#include "RequiredFunctions.h"
 
 namespace ESE {
 class CSRGraph;
@@ -177,23 +172,17 @@ class Circuit {
     friend bool check_validity(const ESE::CSRGraph& graph);
     friend class CSimulator;
 
-  private:
-    int num_inputs_ = 0;   /**< Internal counter tracking inputs. */
-    int num_units_ = 0;    /**< Internal counter tracking units. */
-    int num_products_ = 0; /**< Internal counter tracking exit points. */
-    int feed_dest_ = 0;    /**< Target vector index indicating feed entrance point. */
+    int num_inputs_ = 0;
+    int num_units_ = 0;
+    int num_products_ = 0;
+    int feed_dest_ = 0;
 
-    std::vector<CUnit> units;        /**< Collection of separation units comprising this circuit. */
-    std::vector<int> empty_outputs_; /**< Fallback array reference for disconnected/dead outputs. */
+    std::vector<CUnit> units;
+    std::vector<int> empty_outputs_;
 
-    std::vector<std::array<double, N_COMPONENTS>>
-        final_products; /**< Trackers recording steady-state mass vectors at product exits. */
-    std::array<double, N_COMPONENTS>
-        final_tailings{}; /**< Trackers recording aggregate final tailings streams. */
+    std::vector<std::vector<double>> final_products;
+    std::vector<double> final_tailings;
 
-    /**
-     * @brief Assigns specific chemical kinetic multipliers onto an isolated unit.
-     */
     void set_unit_constants(CUnit& unit, const Simulator_Parameters& params);
 
     /**

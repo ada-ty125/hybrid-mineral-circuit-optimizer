@@ -8,13 +8,13 @@
 #include "CSRGraph.h"
 #include "RequiredFunctions.h"
 #include "CCircuit.h"
+#include <span>
+#include <vector>
 
 class CSimulator {
   public:
     static double evaluate(Circuit& circuit, const Simulator_Parameters& simulator_parameters =
                                                  default_simulator_parameters);
-
-  private:
     static void calculate_all_outputs(Circuit& circuit,
                                       const Simulator_Parameters& simulator_parameters);
 
@@ -23,11 +23,9 @@ class CSimulator {
     static void clear_all_feeds(Circuit& circuit);
 
     static void add_to_unit_feed(Circuit& circuit, int unit_idx,
-                                 const std::array<double, N_COMPONENTS>& material);
+                                 const std::vector<double>& material);
 
-    static void add_to_unit_feed(Circuit& circuit, int unit_idx,
-                                 const double material[N_COMPONENTS]);
-
+  private:
     static void clear_final_outputs(Circuit& circuit);
 
     static void distribute_outputs(Circuit& circuit);
