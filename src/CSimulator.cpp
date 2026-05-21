@@ -178,8 +178,12 @@ void CSimulator::distribute_outputs(Circuit& circuit) {
 bool CSimulator::has_converged(const Circuit& circuit,
                                const Simulator_Parameters& simulator_parameters) {
     int n_comp = simulator_parameters.n_components;
+
     for (const auto& unit : circuit.units) {
-        if (static_cast<int>(unit.feed.size()) < n_comp) return false;
+        if (static_cast<int>(unit.feed.size()) < n_comp ||
+            static_cast<int>(unit.old_feed.size()) < n_comp) {
+            return false;
+        }
 
         for (int comp = 0; comp < n_comp; ++comp) {
             double old_val = unit.old_feed[comp];
@@ -193,6 +197,7 @@ bool CSimulator::has_converged(const Circuit& circuit,
             }
         }
     }
+
     return true;
 }
 

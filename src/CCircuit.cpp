@@ -270,20 +270,38 @@ bool Circuit::initialise(std::span<const int> circuit_vector,
         return false;
     }
 
+    const int n_comp = simulator_parameters.n_components;
+
     num_inputs_ = parsed.num_inputs;
     num_units_ = parsed.num_units;
     num_products_ = parsed.num_products;
     feed_dest_ = parsed.feed_dest;
 
     units.assign(static_cast<std::size_t>(parsed.num_units), CUnit{});
-    final_products.assign(static_cast<std::size_t>(parsed.num_products), {});
-    std::fill(final_tailings.begin(), final_tailings.end(), 0.0);
+
+    final_products.assign(static_cast<std::size_t>(parsed.num_products),
+                          std::vector<double>(static_cast<std::size_t>(n_comp), 0.0));
+
+    final_tailings.assign(static_cast<std::size_t>(n_comp), 0.0);
 
     for (int unit_id = 0; unit_id < parsed.num_units; ++unit_id) {
         CUnit& unit = units[static_cast<std::size_t>(unit_id)];
+
         unit.n_outputs = static_cast<int>(parsed.outputs[static_cast<std::size_t>(unit_id)].size());
-        set_unit_constants(unit, simulator_parameters);
+
         unit.output = parsed.outputs[static_cast<std::size_t>(unit_id)];
+
+        unit.feed.assign(static_cast<std::size_t>(n_comp), 0.0);
+        unit.old_feed.assign(static_cast<std::size_t>(n_comp), 0.0);
+        unit.tails.assign(static_cast<std::size_t>(n_comp), 0.0);
+        unit.total_recovery.assign(static_cast<std::size_t>(n_comp), 0.0);
+
+        unit.concentrate.assign(static_cast<std::size_t>(unit.n_outputs - 1),
+                                std::vector<double>(static_cast<std::size_t>(n_comp), 0.0));
+
+        unit.k_matrix.assign(2, std::vector<double>(static_cast<std::size_t>(n_comp), 0.0));
+
+        set_unit_constants(unit, simulator_parameters);
     }
 
     return true;
@@ -428,18 +446,30 @@ const std::vector<int>& Circuit::output_destinations(int unit_id) const {
 
 // Helper function to set unit constants based on unit type (Type A or Type B)
 void Circuit::set_unit_constants(CUnit& unit, const Simulator_Parameters& simulator_parameters) {
+    const int n_comp = simulator_parameters.n_components;
+
+    unit.k_matrix.assign(2, std::vector<double>(static_cast<std::size_t>(n_comp), 0.0));
+
     if (unit.n_outputs == 2) {
         unit.unit_type = 0;
+
         for (int row = 0; row < 2; ++row) {
-            for (int comp = 0; comp < 3; ++comp) {
-                unit.k_matrix[row][comp] = simulator_parameters.k_TypeA[row][comp];
+            for (int comp = 0; comp < n_comp; ++comp) {
+                if (row < static_cast<int>(simulator_parameters.k_TypeA.size()) &&
+                    comp < static_cast<int>(simulator_parameters.k_TypeA[row].size())) {
+                    unit.k_matrix[row][comp] = simulator_parameters.k_TypeA[row][comp];
+                }
             }
         }
     } else if (unit.n_outputs == 3) {
         unit.unit_type = 1;
+
         for (int row = 0; row < 2; ++row) {
-            for (int comp = 0; comp < 3; ++comp) {
-                unit.k_matrix[row][comp] = simulator_parameters.k_TypeB[row][comp];
+            for (int comp = 0; comp < n_comp; ++comp) {
+                if (row < static_cast<int>(simulator_parameters.k_TypeB.size()) &&
+                    comp < static_cast<int>(simulator_parameters.k_TypeB[row].size())) {
+                    unit.k_matrix[row][comp] = simulator_parameters.k_TypeB[row][comp];
+                }
             }
         }
     }

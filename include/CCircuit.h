@@ -74,7 +74,6 @@ class Circuit {
     friend bool check_validity(const ESE::CSRGraph& graph);
     friend class CSimulator;
 
-  private:
     int num_inputs_ = 0;
     int num_units_ = 0;
     int num_products_ = 0;

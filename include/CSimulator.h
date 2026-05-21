@@ -15,8 +15,6 @@ class CSimulator {
   public:
     static double evaluate(Circuit& circuit, const Simulator_Parameters& simulator_parameters =
                                                  default_simulator_parameters);
-
-  private:
     static void calculate_all_outputs(Circuit& circuit,
                                       const Simulator_Parameters& simulator_parameters);
 
@@ -27,7 +25,7 @@ class CSimulator {
     static void add_to_unit_feed(Circuit& circuit, int unit_idx,
                                  const std::vector<double>& material);
 
-
+  private:
     static void clear_final_outputs(Circuit& circuit);
 
     static void distribute_outputs(Circuit& circuit);
