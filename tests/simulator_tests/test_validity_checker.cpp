@@ -1,3 +1,11 @@
+/**
+ * @file test_validity_checker.cpp
+ * @brief Tests graph and circuit-vector validity checks for separator layouts.
+ *
+ * The cases verify that legal topologies are accepted and common invalid
+ * patterns such as isolated units and self-recycles are rejected.
+ */
+
 #include <iostream>
 
 #include "CSRGraph.h"

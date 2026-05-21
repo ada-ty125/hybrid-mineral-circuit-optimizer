@@ -1,3 +1,11 @@
+/**
+ * @file test_mock_circuit.cpp
+ * @brief Tests the GA against a deterministic mock circuit objective.
+ *
+ * The mock objective provides a cheap target-vector fitness function so the GA
+ * can be checked without invoking the full circuit simulator.
+ */
+
 #include <iostream>
 #include <span>
 #include <vector>

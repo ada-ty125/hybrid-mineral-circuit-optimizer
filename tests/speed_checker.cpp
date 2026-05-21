@@ -1,3 +1,11 @@
+/**
+ * @file speed_checker.cpp
+ * @brief Measures repeated circuit-performance evaluation throughput.
+ *
+ * The tool loads circuit vectors from test data and repeatedly evaluates them
+ * to provide a simple simulator speed regression check.
+ */
+
 #include <iostream>
 #include <chrono>
 #include <fstream>

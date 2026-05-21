@@ -1,6 +1,10 @@
-// test_economics.cpp
-//
-// Expected values worked out by hand from the appendix. Exits 1 on failure.
+/**
+ * @file test_economics.cpp
+ * @brief Validates economic value calculations against hand-computed cases.
+ *
+ * Expected values are derived from the project appendix. The test exits with a
+ * non-zero status if any pricing or operating-cost case deviates.
+ */
 
 #include <cmath>
 #include <cstdio>

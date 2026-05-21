@@ -1,3 +1,11 @@
+/**
+ * @file test_tailings_product_routing.cpp
+ * @brief Checks pricing when tailings are routed to a product stream.
+ *
+ * The test ensures a Type A unit's tailings stream is evaluated according to
+ * the product outlet it reaches rather than treated as final tailings.
+ */
+
 #include <cmath>
 #include <iostream>
 #include <span>

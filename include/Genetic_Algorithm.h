@@ -1,3 +1,12 @@
+/**
+ * @file Genetic_Algorithm.h
+ * @brief Declares the genetic algorithm data structures and optimization APIs.
+ *
+ * The modern GA entry points support discrete, continuous, and hybrid
+ * optimization over circuit encodings with configurable selection, crossover,
+ * mutation, and early stopping parameters.
+ */
+
 #pragma once
 
 #include <span>

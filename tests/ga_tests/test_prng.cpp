@@ -1,3 +1,11 @@
+/**
+ * @file test_prng.cpp
+ * @brief Checks basic range behavior of the default random number generator.
+ *
+ * The test seeds the generator deterministically and verifies integer and
+ * floating-point draws remain inside requested bounds.
+ */
+
 #include "PRNG.h"
 #include <iostream>
 

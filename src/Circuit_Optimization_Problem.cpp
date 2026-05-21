@@ -1,3 +1,12 @@
+/**
+ * @file Circuit_Optimization_Problem.cpp
+ * @brief Implements the fixed and swapable circuit optimization workflows.
+ *
+ * This translation unit bridges circuit-specific vector generation, mutation,
+ * validity checks, performance evaluation, and optional visualization output
+ * for the command-line optimizer and tuning utilities.
+ */
+
 #include "Circuit_Optimization_Problem.h"
 
 #include <algorithm>

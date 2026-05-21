@@ -1,6 +1,10 @@
-// Economics.cpp
-//
-// Pure maths, no I/O. The GA will call these functions a lot each generation.
+/**
+ * @file Economics.cpp
+ * @brief Implements economic scoring helpers for simulated circuit outputs.
+ *
+ * These functions are pure calculations with no I/O. The genetic algorithm
+ * calls them frequently while evaluating candidate circuits.
+ */
 
 #include "Economics.h"
 

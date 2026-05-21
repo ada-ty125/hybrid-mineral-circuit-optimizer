@@ -156,8 +156,10 @@ void crossover_circuit_vectors(
  * are written as DOT graphs containing an error node so failed post-processing
  * remains inspectable.
  *
- * If `filename` ends in `.png`, Graphviz is used to render a PNG image.
- * Otherwise the output is written as Graphviz DOT text.
+ * If `filename` ends in `.gif`, Python is used to render an animated GIF with
+ * simulated stream flows and product metrics. If it ends in `.png`, Graphviz is
+ * used to render a static PNG image. Otherwise the output is written as
+ * Graphviz DOT text.
  *
  * @param values Circuit vector to visualise.
  * @param filename Path to the output file to write.

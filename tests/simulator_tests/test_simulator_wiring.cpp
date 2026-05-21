@@ -1,5 +1,10 @@
-// Comprehensive regression tests for simulator parameter wiring, graph feed
-// path, and span validity guards added on feature/simulator_par.
+/**
+ * @file test_simulator_wiring.cpp
+ * @brief Comprehensive simulator wiring and parameter propagation tests.
+ *
+ * The tests cover graph feed paths, span validity guards, simulator parameter
+ * sensitivity, and known converging circuit cases.
+ */
 
 #include <cassert>
 #include <cmath>
