@@ -7,7 +7,6 @@
 
 #include <array>
 #include <vector>
-#include "CCircuit.h"
 
 struct Simulator_Parameters;
 
@@ -24,6 +23,8 @@ class CUnit {
     std::vector<std::vector<double>> concentrate;
     std::vector<double> tails;
     std::vector<double> total_recovery;
+    bool mark = false;
+    std::vector<std::vector<double>> k_matrix;
 
     // Constants for calculations
     mutable double residence_time = 0.0;
@@ -32,9 +33,8 @@ class CUnit {
     double total_feed() const;
     double calculate_residence_time(const Simulator_Parameters& params) const;
 
-    double calculate_recovery(int st_idx, int component, 
-                             const std::vector<std::vector<double>>& k_matrix, 
-                             double ta) const;
+    double calculate_recovery(int st_idx, int component,
+                              const std::vector<std::vector<double>>& k_matrix, double ta) const;
 
     void calculate_outputs(const Simulator_Parameters& params);
 

@@ -263,7 +263,8 @@ Circuit::Circuit(int num_units) {
     }
 }
 
-bool Circuit::initialise(std::span<const int> circuit_vector, const Simulator_Parameters& simulator_parameters) {
+bool Circuit::initialise(std::span<const int> circuit_vector,
+                         const Simulator_Parameters& simulator_parameters) {
     ParsedCircuit parsed;
     if (!parse_circuit(circuit_vector, parsed)) {
         return false;
@@ -276,7 +277,7 @@ bool Circuit::initialise(std::span<const int> circuit_vector, const Simulator_Pa
 
     units.assign(static_cast<std::size_t>(parsed.num_units), CUnit{});
     final_products.assign(static_cast<std::size_t>(parsed.num_products), {});
-    final_tailings.fill(0.0);
+    std::fill(final_tailings.begin(), final_tailings.end(), 0.0);
 
     for (int unit_id = 0; unit_id < parsed.num_units; ++unit_id) {
         CUnit& unit = units[static_cast<std::size_t>(unit_id)];
@@ -434,8 +435,7 @@ void Circuit::set_unit_constants(CUnit& unit, const Simulator_Parameters& simula
                 unit.k_matrix[row][comp] = simulator_parameters.k_TypeA[row][comp];
             }
         }
-    }
-    else if (unit.n_outputs == 3) {
+    } else if (unit.n_outputs == 3) {
         unit.unit_type = 1;
         for (int row = 0; row < 2; ++row) {
             for (int comp = 0; comp < 3; ++comp) {
@@ -444,7 +444,6 @@ void Circuit::set_unit_constants(CUnit& unit, const Simulator_Parameters& simula
         }
     }
 }
-
 
 void Circuit::mark_units(int unit_num) {
     if (!is_unit_id(unit_num)) {
@@ -463,4 +462,3 @@ void Circuit::mark_units(int unit_num) {
         }
     }
 }
-

@@ -12,9 +12,7 @@ CUnit::CUnit() {
 /**
  * Resets the current incoming mass feed components to zero.
  */
-void CUnit::clear_feeds() {
-    std::fill(feed.begin(), feed.end(), 0.0);
-}
+void CUnit::clear_feeds() { std::fill(feed.begin(), feed.end(), 0.0); }
 
 /**
  * Sums the mass flow rates of all individual fluid components.
@@ -52,7 +50,8 @@ double CUnit::calculate_residence_time(const Simulator_Parameters& params) const
  * @param component Index of the chemical component (Pal, Gor, Waste).
  * @return Fractional recovery value between 0.0 and 1.0.
  */
-double CUnit::calculate_recovery(int st_idx, int component, const std::vector<std::vector<double>>& k_matrix, 
+double CUnit::calculate_recovery(int st_idx, int component,
+                                 const std::vector<std::vector<double>>& k_matrix,
                                  double tau) const {
     double summation = 0.0;
     int num_c_stream = n_outputs - 1;
@@ -88,7 +87,7 @@ void CUnit::calculate_outputs(const Simulator_Parameters& params) {
 
     double tau = calculate_residence_time(params);
 
-    const auto& k_matrix = (unit_type == 0) ? params.k_TypeA : params.k_TypeB
+    const auto& k_matrix = (unit_type == 0) ? params.k_TypeA : params.k_TypeB;
     std::vector<double> total_recovery(n_comp, 0.0);
 
     // Calculating mass partitioned into each concentrate stream

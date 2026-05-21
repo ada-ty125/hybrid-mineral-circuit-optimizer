@@ -27,8 +27,6 @@ class CSimulator {
     static void add_to_unit_feed(Circuit& circuit, int unit_idx,
                                  const std::vector<double>& material);
 
-    static void add_to_unit_feed(Circuit& circuit, int unit_idx,
-                                 const std::vector<double>& material);
 
     static void clear_final_outputs(Circuit& circuit);
 

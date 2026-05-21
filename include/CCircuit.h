@@ -11,9 +11,6 @@
 #include <span>
 #include <vector>
 
-#include "CUnit.h"
-#include "RequiredFunctions.h"
-
 struct Simulator_Parameters {
     // Solver Mechanics
     double tolerance = 1e-6;
@@ -23,16 +20,20 @@ struct Simulator_Parameters {
     double tank_volume = 10.0;
     double fluid_density = 3000.0;
     double phi = 0.1;
-    //Components
-    int n_components = 3; 
+    // Components
+    int n_components = 3;
     std::vector<std::string> component_names = {"Palusznium", "Gormanium", "Waste"};
     // A single vector handles all component feed inputs
     std::vector<double> input_feed_rates = {8.0, 12.0, 80.0};
     // k matrix values based on Type
-    std::vector<std::vector<double>> k_TypeA = { {0.008, 0.006, 0.0005}, {0.0,   0.0,   0.0} };
-    std::vector<std::vector<double>> k_TypeB = { {0.007, 0.001, 0.001},  {0.001, 0.006, 0.001} };
+    std::vector<std::vector<double>> k_TypeA = {{0.008, 0.006, 0.0005}, {0.0, 0.0, 0.0}};
+    std::vector<std::vector<double>> k_TypeB = {{0.007, 0.001, 0.001}, {0.001, 0.006, 0.001}};
 };
 extern Simulator_Parameters default_simulator_parameters;
+
+#include "CUnit.h"
+#include "RequiredFunctions.h"
+
 namespace ESE {
 class CSRGraph;
 }
