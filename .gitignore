@@ -1,4 +1,6 @@
 .vscode
+
+# Local CMake build trees
 build/
 build-gcc/
 build-*/

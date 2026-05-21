@@ -1,32 +1,54 @@
-/** Header for the Genetic Algorithm library
- *
-*/
-
 #pragma once
 
-#include "CSRGraph.h"
+#include <span>
+#include <vector>
+#include <functional>
+#include <random>
 #include "RequiredFunctions.h"
 
-
-struct Algorithm_Parameters{
-    int max_iterations;
-    // other parameters for your algorithm       
+struct Algorithm_Parameters {
+    int max_iterations = 1000;
+    int population_size = 200;
+    double crossover_probability = 0.85;
+    double mutation_probability = 0.05;
+    int early_stop_patience = 100;
+    int tournament_size = 3;
+    int num_crossover_points = 2;
+    double gaussian_sigma = 0.1;
+    int elite_count = 1;
 };
 
 extern Algorithm_Parameters default_ga_parameters;
-// "good" default parameters for the genetic algorithm,
-// which will be used if the user doesn't specify their own.
 
-BaseResult<std::span<int>> optimize_span(
-    std::span<int> const fixed_prefix,
-    double (*performance_function)(const std::span<int>),
-    bool (*validity_checker)(const std::span<int>),
-    GA_Functions ga_functions,
-    Algorithm_Parameters algorithm_parameters
-);
+struct Individual {
+    std::vector<int> discrete_vector;
+    std::vector<double> continuous_vector;
+    double fitness;
+};
 
-// overloads (delete if not needed)
+struct Modern_GA_Functions {
+    std::function<std::size_t(std::span<const int>)> vector_extent;
+    std::function<void(std::span<const int>, std::span<int>, std::mt19937&)> vector_generator;
+    std::function<void(std::span<const int>, std::span<int>, double, std::mt19937&)> vector_mutator;
+    std::function<void(std::span<double>, std::mt19937&)> continuous_generator;
+};
 
-// Other functions and variables
+double optimize_discrete(std::span<const int> const fixed_prefix,
+                         std::vector<int>& best_discrete_solution,
+                         std::function<double(std::span<const int>)> fitness_function,
+                         std::function<bool(std::span<const int>)> validity_checker,
+                         Modern_GA_Functions ga_functions,
+                         Algorithm_Parameters params = default_ga_parameters);
 
-bool default_validity_checker(std::span<int> const values);
+double optimize_continuous(
+    std::span<const int> const fixed_discrete_structure,
+    std::vector<double>& best_continuous_solution,
+    std::function<double(std::span<const int>, std::span<const double>)> fitness_function,
+    Modern_GA_Functions ga_functions, Algorithm_Parameters params = default_ga_parameters);
+
+double optimize_hybrid(
+    std::span<const int> const fixed_prefix, std::vector<int>& best_discrete_solution,
+    std::vector<double>& best_continuous_solution,
+    std::function<double(std::span<const int>, std::span<const double>)> fitness_function,
+    std::function<bool(std::span<const int>)> validity_checker, Modern_GA_Functions ga_functions,
+    Algorithm_Parameters params = default_ga_parameters);
