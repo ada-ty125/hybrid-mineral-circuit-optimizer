@@ -1,10 +1,16 @@
+/**
+ * @file CCircuit.cpp
+ * @brief Implements the structural verification, graph traversal, and initialization routines for Circuit processing.
+ * @author Cuprite Team (ACDS Palusznium Rush)
+ * @date 2026-05-21
+ */
+
 #include <vector>
 #include <array>
 #include <span>
 #include <stdio.h>
 #include <algorithm>
 #include <cmath>
-#include <vector>
 
 #include "CSRGraph.h"
 #include "CUnit.h"
@@ -13,14 +19,25 @@
 #include "CSimulator.h"
 
 namespace {
+
+/**
+ * @struct ParsedCircuit
+ * @brief Internal utility structure used to store intermediate parsing results from the raw vector format.
+ */
 struct ParsedCircuit {
-    int num_inputs = 0;
-    int num_units = 0;
-    int num_products = 0;
-    int feed_dest = -1;
-    std::vector<std::vector<int>> outputs;
+    int num_inputs = 0;      /**< Number of system input nodes. */
+    int num_units = 0;       /**< Total separation unit blocks parsed. */
+    int num_products = 0;    /**< Count of distinct product exit channels. */
+    int feed_dest = -1;      /**< The primary target unit ID receiving the source feed. */
+    std::vector<std::vector<int>> outputs; /**< Adjacency list storing downstream routing indices for each unit. */
 };
 
+/**
+ * @brief Parses and validates a raw configuration vector representing circuit connections.
+ * @param circuit_vector Flattened sequence containing metadata parameters and destination lists.
+ * @param parsed Output container to store the successfully grouped topological data.
+ * @return True if the layout matches formatting templates and satisfies size limits, false otherwise.
+ */
 bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
     if (circuit_vector.size() < 4) {
         return false;
@@ -30,6 +47,7 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
     parsed.num_units = circuit_vector[1];
     parsed.num_products = circuit_vector[2];
 
+    // Topological constraints bounding system sizes
     if (parsed.num_inputs <= 0 || parsed.num_units <= 0 || parsed.num_products < 2) {
         return false;
     }
@@ -40,6 +58,7 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
         return false;
     }
 
+    // Verify degree boundaries per cell block (Only 2 or 3 streams allowed)
     std::vector<int> output_counts(unit_count, 0);
     std::size_t total_outputs = 0;
     for (std::size_t unit = 0; unit < unit_count; ++unit) {
@@ -51,6 +70,7 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
         total_outputs += static_cast<std::size_t>(output_count);
     }
 
+    // Integrity check ensuring overall stream matrix dimensions align perfectly
     const std::size_t expected_length = 3 + unit_count + 1 + total_outputs;
     if (circuit_vector.size() != expected_length) {
         return false;
@@ -71,6 +91,7 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
 
         for (int out = 0; out < output_counts[unit]; ++out) {
             const int destination = circuit_vector[pos++];
+            // Guard conditions: check boundaries, enforce no self-loops, and block parallel duplicate edges
             if (destination < 0 || destination >= one_past_last_product_id) {
                 return false;
             }
@@ -90,18 +111,23 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
 
 }  // namespace
 
+/**
+ * @brief Global interface to audit basic reachability behaviors directly from a configuration vector.
+ */
 bool check_validity(std::span<const int> circuit_vector) {
     Circuit circuit;
     if (!circuit.initialise(circuit_vector)) {
         return false;
     }
 
+    // Constraint 1: Check if every registered separation unit is accessible from the head feed
     const std::vector<bool> reachable_from_feed = circuit.units_reachable_from_feed();
     if (!std::all_of(reachable_from_feed.begin(), reachable_from_feed.end(),
                      [](bool value) { return value; })) {
         return false;
     }
 
+    // Constraint 2: Verify that each module maintains paths leading to at least two distinct sinks
     for (int unit = 0; unit < circuit.num_units(); ++unit) {
         if (circuit.count_reachable_products_from_unit(unit) < 2) {
             return false;
@@ -111,10 +137,12 @@ bool check_validity(std::span<const int> circuit_vector) {
     return true;
 }
 
+/**
+ * @brief Evaluates an ESE::CSRGraph data layer against system design policies.
+ */
 bool check_validity(const ESE::CSRGraph& graph) {
     // -------------------------------------------------------------------------
     // STEP 1: Ultra-fast local checks from the graph representation.
-    // These are the original graph-side validity checks from Validity_Checker.
     // -------------------------------------------------------------------------
     int num_units = static_cast<int>(graph.n_dynamic_nodes);
     if (num_units <= 0) {
@@ -200,6 +228,9 @@ bool check_validity(const ESE::CSRGraph& graph) {
     return true;
 }
 
+/**
+ * @brief Adapts a traditional ESE::Graph structure for full circuit validation.
+ */
 bool check_validity(const ESE::Graph& graph) {
     const int num_units = static_cast<int>(graph.n_dynamic_nodes);
     const int num_products = static_cast<int>(graph.n_sink_nodes);
@@ -297,6 +328,10 @@ bool Circuit::is_product_id(int id) const noexcept {
 
 int Circuit::product_index(int product_id) const noexcept { return product_id - num_units(); }
 
+/**
+ * @brief Executes an iterative Breadth-First / Depth-First search via a stack container
+ * to identify all reachable sub-components originating from the primary source entrance node.
+ */
 std::vector<bool> Circuit::units_reachable_from_feed() const {
     std::vector<bool> seen(units.size(), false);
     if (!is_unit_id(feed_dest_)) {
@@ -328,6 +363,10 @@ std::vector<bool> Circuit::units_reachable_from_feed() const {
     return seen;
 }
 
+/**
+ * @brief Traces graph pathways using stack-driven search loops to determine if an absolute connection 
+ * links the designated start unit to a target unit index.
+ */
 bool Circuit::can_reach(int start, int target) const {
     if (!is_unit_id(start)) {
         return false;
@@ -362,6 +401,9 @@ bool Circuit::can_reach(int start, int target) const {
     return false;
 }
 
+/**
+ * @brief Accumulates final sink IDs encountered during traversal routes stemming from the given cell block.
+ */
 std::vector<bool> Circuit::products_reachable_from_unit(int unit_id) const {
     std::vector<bool> product_seen(static_cast<std::size_t>(num_products()), false);
     if (!is_unit_id(unit_id)) {
@@ -426,7 +468,6 @@ const std::vector<int>& Circuit::output_destinations(int unit_id) const {
     return units[static_cast<std::size_t>(unit_id)].output;
 }
 
-// Helper function to set unit constants based on unit type (Type A or Type B)
 void Circuit::set_unit_constants(CUnit& unit, const Simulator_Parameters& simulator_parameters) {
     unit.volume = simulator_parameters.tank_volume;
     unit.rho = simulator_parameters.fluid_density;
@@ -438,6 +479,9 @@ void Circuit::set_unit_constants(CUnit& unit, const Simulator_Parameters& simula
     }
 }
 
+/**
+ * @brief Recursively traverses and marks components to register downstream accessibility properties.
+ */
 void Circuit::mark_units(int unit_num) {
     if (!is_unit_id(unit_num)) {
         return;
