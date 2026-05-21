@@ -76,7 +76,6 @@ double CUnit::calculate_recovery(int st_idx, int component, const double k_matri
  * concentrate streams and applies mass conservation to calculate the tailings.
  */
 void CUnit::calculate_outputs(const Simulator_Parameters& params) {
-    const double (*k_matrix)[3] = unit_type == 0 ? params.k_TypeA : params.k_TypeB;
     int num_c_streams = n_outputs - 1;
     concentrate.resize(num_c_streams);
     double total_recovery[N_COMPONENTS] = {0.0, 0.0, 0.0};
@@ -84,7 +83,8 @@ void CUnit::calculate_outputs(const Simulator_Parameters& params) {
     // Calculating mass partitioned into each concentrate stream
     for (int out = 0; out < num_c_streams; out++) {
         for (int comp = 0; comp < N_COMPONENTS; comp++) {
-            double R = calculate_recovery(out, comp, k_matrix);
+            double R = unit_type == 0 ? calculate_recovery(out, comp, params.k_TypeA)
+                                      : calculate_recovery(out, comp, params.k_TypeB);
             concentrate[out][comp] = feed[comp] * R;
             total_recovery[comp] += R;
         }
