@@ -1,25 +1,47 @@
+/**
+ * @file CCircuit.cpp
+ * @brief Implements the structural verification, graph traversal, and initialization routines for
+ * Circuit processing.
+ * @author Cuprite Team (ACDS Palusznium Rush)
+ * @date 2026-05-21
+ */
+
 #include <vector>
 #include <array>
 #include <span>
 #include <stdio.h>
 #include <algorithm>
 #include <cmath>
-#include <vector>
 
 #include "CSRGraph.h"
 #include "CUnit.h"
 #include "CCircuit.h"
 #include "Economics.h"
+#include "CSimulator.h"
 
 namespace {
+
+/**
+ * @struct ParsedCircuit
+ * @brief Internal utility structure used to store intermediate parsing results from the raw vector
+ * format.
+ */
 struct ParsedCircuit {
-    int num_inputs = 0;
-    int num_units = 0;
-    int num_products = 0;
-    int feed_dest = -1;
-    std::vector<std::vector<int>> outputs;
+    int num_inputs = 0;   /**< Number of system input nodes. */
+    int num_units = 0;    /**< Total separation unit blocks parsed. */
+    int num_products = 0; /**< Count of distinct product exit channels. */
+    int feed_dest = -1;   /**< The primary target unit ID receiving the source feed. */
+    std::vector<std::vector<int>>
+        outputs; /**< Adjacency list storing downstream routing indices for each unit. */
 };
 
+/**
+ * @brief Parses and validates a raw configuration vector representing circuit connections.
+ * @param circuit_vector Flattened sequence containing metadata parameters and destination lists.
+ * @param parsed Output container to store the successfully grouped topological data.
+ * @return True if the layout matches formatting templates and satisfies size limits, false
+ * otherwise.
+ */
 bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
     if (circuit_vector.size() < 4) {
         return false;
@@ -29,6 +51,7 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
     parsed.num_units = circuit_vector[1];
     parsed.num_products = circuit_vector[2];
 
+    // Topological constraints bounding system sizes
     if (parsed.num_inputs <= 0 || parsed.num_units <= 0 || parsed.num_products < 2) {
         return false;
     }
@@ -39,6 +62,7 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
         return false;
     }
 
+    // Verify degree boundaries per cell block (Only 2 or 3 streams allowed)
     std::vector<int> output_counts(unit_count, 0);
     std::size_t total_outputs = 0;
     for (std::size_t unit = 0; unit < unit_count; ++unit) {
@@ -50,6 +74,7 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
         total_outputs += static_cast<std::size_t>(output_count);
     }
 
+    // Integrity check ensuring overall stream matrix dimensions align perfectly
     const std::size_t expected_length = 3 + unit_count + 1 + total_outputs;
     if (circuit_vector.size() != expected_length) {
         return false;
@@ -70,6 +95,8 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
 
         for (int out = 0; out < output_counts[unit]; ++out) {
             const int destination = circuit_vector[pos++];
+            // Guard conditions: check boundaries, enforce no self-loops, and block parallel
+            // duplicate edges
             if (destination < 0 || destination >= one_past_last_product_id) {
                 return false;
             }
@@ -89,18 +116,24 @@ bool parse_circuit(std::span<const int> circuit_vector, ParsedCircuit& parsed) {
 
 }  // namespace
 
+/**
+ * @brief Global interface to audit basic reachability behaviors directly from a configuration
+ * vector.
+ */
 bool check_validity(std::span<const int> circuit_vector) {
     Circuit circuit;
     if (!circuit.initialise(circuit_vector)) {
         return false;
     }
 
+    // Constraint 1: Check if every registered separation unit is accessible from the head feed
     const std::vector<bool> reachable_from_feed = circuit.units_reachable_from_feed();
     if (!std::all_of(reachable_from_feed.begin(), reachable_from_feed.end(),
                      [](bool value) { return value; })) {
         return false;
     }
 
+    // Constraint 2: Verify that each module maintains paths leading to at least two distinct sinks
     for (int unit = 0; unit < circuit.num_units(); ++unit) {
         if (circuit.count_reachable_products_from_unit(unit) < 2) {
             return false;
@@ -110,10 +143,12 @@ bool check_validity(std::span<const int> circuit_vector) {
     return true;
 }
 
+/**
+ * @brief Evaluates an ESE::CSRGraph data layer against system design policies.
+ */
 bool check_validity(const ESE::CSRGraph& graph) {
     // -------------------------------------------------------------------------
     // STEP 1: Ultra-fast local checks from the graph representation.
-    // These are the original graph-side validity checks from Validity_Checker.
     // -------------------------------------------------------------------------
     int num_units = static_cast<int>(graph.n_dynamic_nodes);
     if (num_units <= 0) {
@@ -199,6 +234,9 @@ bool check_validity(const ESE::CSRGraph& graph) {
     return true;
 }
 
+/**
+ * @brief Adapts a traditional ESE::Graph structure for full circuit validation.
+ */
 bool check_validity(const ESE::Graph& graph) {
     const int num_units = static_cast<int>(graph.n_dynamic_nodes);
     const int num_products = static_cast<int>(graph.n_sink_nodes);
@@ -262,66 +300,8 @@ Circuit::Circuit(int num_units) {
     }
 }
 
-// Constructor using circuit vector
-Circuit::Circuit(std::span<const int> circuit_vector) {
-    num_inputs_ = circuit_vector[0];
-
-    // Define the number of units based on the circuit vector
-    int num_units = circuit_vector[1];
-    num_units_ = num_units;
-
-    // Define the number of products based on the circuit vector
-    int num_products = circuit_vector[2];
-    num_products_ = num_products;
-
-    // Resize the units vector to hold all units
-    units.resize(num_units);
-    final_products.resize(num_products);
-    final_tailings.fill(0.0);
-
-    // Resize the units vector to hold all units
-    units.resize(num_units);
-
-    // Read feed destination and output destinations from the circuit vector
-    // Index 0 = num_inputs
-    // Index 1 = num_units
-    // Index 2 = num_products
-    // So unit output counts begin at index 3
-    int pos = 3;
-
-    // Read unit output counts and decide Type A / Type B
-    for (int i = 0; i < num_units; i++) {
-        // Set the number of outputs for the unit
-        units[i].n_outputs = circuit_vector[pos];
-
-        // Set unit constants based on the number of outputs
-        // 2 outputs = Type A
-        // 3 outputs = Type B
-        set_unit_constants(units[i]);
-
-        // Make space for this unit's output destination IDs
-        units[i].output.resize(units[i].n_outputs);
-
-        pos++;
-        // Index 3 + num_units = start of feed destination
-    }
-
-    // Read feed destination
-    feed_dest_ = circuit_vector[pos];
-    pos++;
-    // Index 3 + num_units + 1 = start of output destinations
-
-    // Read output destinations
-    for (int i = 0; i < num_units; i++) {
-        for (int out = 0; out < units[i].n_outputs; out++) {
-            // Set the output destination for the unit
-            units[i].output[out] = circuit_vector[pos];
-            pos++;
-        }
-    }
-}
-
-bool Circuit::initialise(std::span<const int> circuit_vector) {
+bool Circuit::initialise(std::span<const int> circuit_vector,
+                         const Simulator_Parameters& simulator_parameters) {
     ParsedCircuit parsed;
     if (!parse_circuit(circuit_vector, parsed)) {
         return false;
@@ -339,7 +319,7 @@ bool Circuit::initialise(std::span<const int> circuit_vector) {
     for (int unit_id = 0; unit_id < parsed.num_units; ++unit_id) {
         CUnit& unit = units[static_cast<std::size_t>(unit_id)];
         unit.n_outputs = static_cast<int>(parsed.outputs[static_cast<std::size_t>(unit_id)].size());
-        set_unit_constants(unit);
+        set_unit_constants(unit, simulator_parameters);
         unit.output = parsed.outputs[static_cast<std::size_t>(unit_id)];
     }
 
@@ -354,6 +334,10 @@ bool Circuit::is_product_id(int id) const noexcept {
 
 int Circuit::product_index(int product_id) const noexcept { return product_id - num_units(); }
 
+/**
+ * @brief Executes an iterative Breadth-First / Depth-First search via a stack container
+ * to identify all reachable sub-components originating from the primary source entrance node.
+ */
 std::vector<bool> Circuit::units_reachable_from_feed() const {
     std::vector<bool> seen(units.size(), false);
     if (!is_unit_id(feed_dest_)) {
@@ -385,6 +369,10 @@ std::vector<bool> Circuit::units_reachable_from_feed() const {
     return seen;
 }
 
+/**
+ * @brief Traces graph pathways using stack-driven search loops to determine if an absolute
+ * connection links the designated start unit to a target unit index.
+ */
 bool Circuit::can_reach(int start, int target) const {
     if (!is_unit_id(start)) {
         return false;
@@ -419,6 +407,10 @@ bool Circuit::can_reach(int start, int target) const {
     return false;
 }
 
+/**
+ * @brief Accumulates final sink IDs encountered during traversal routes stemming from the given
+ * cell block.
+ */
 std::vector<bool> Circuit::products_reachable_from_unit(int unit_id) const {
     std::vector<bool> product_seen(static_cast<std::size_t>(num_products()), false);
     if (!is_unit_id(unit_id)) {
@@ -483,281 +475,35 @@ const std::vector<int>& Circuit::output_destinations(int unit_id) const {
     return units[static_cast<std::size_t>(unit_id)].output;
 }
 
-// Helper function to set unit constants based on unit type (Type A or Type B)
-void Circuit::set_unit_constants(CUnit& unit) {
+void Circuit::set_unit_constants(CUnit& unit, const Simulator_Parameters& simulator_parameters) {
+    unit.volume = simulator_parameters.tank_volume;
+    unit.rho = simulator_parameters.fluid_density;
+
     if (unit.n_outputs == 2) {
-        // Type A
         unit.unit_type = 0;
-        unit.k_matrix[0][0] = 0.008;
-        unit.k_matrix[0][1] = 0.006;
-        unit.k_matrix[0][2] = 0.0005;
-
-        unit.k_matrix[1][0] = 0.0;
-        unit.k_matrix[1][1] = 0.0;
-        unit.k_matrix[1][2] = 0.0;
-    }
-
-    else if (unit.n_outputs == 3) {
-        // Type B
+    } else if (unit.n_outputs == 3) {
         unit.unit_type = 1;
-        unit.k_matrix[0][0] = 0.007;
-        unit.k_matrix[0][1] = 0.001;
-        unit.k_matrix[0][2] = 0.001;
-
-        unit.k_matrix[1][0] = 0.001;
-        unit.k_matrix[1][1] = 0.006;
-        unit.k_matrix[1][2] = 0.001;
     }
 }
 
-// Recursively marks all units reachable from unit_num
+/**
+ * @brief Recursively traverses and marks components to register downstream accessibility
+ * properties.
+ */
 void Circuit::mark_units(int unit_num) {
-    // If unit_num is not a real unit ->stop
-    if (unit_num < 0 || unit_num >= static_cast<int>(units.size())) {
+    if (!is_unit_id(unit_num)) {
         return;
     }
 
-    // If this unit has already been visited -> stop
-    if (units[unit_num].mark) {
+    if (units[static_cast<std::size_t>(unit_num)].mark) {
         return;
     }
 
-    // Mark this unit as visited
-    units[unit_num].mark = true;
+    units[static_cast<std::size_t>(unit_num)].mark = true;
 
-    // Visit all units connected to this unit's outputs
-    for (int i = 0; i < units[unit_num].n_outputs; i++) {
-        // Destination of output i from unit_num
-        int dest = units[unit_num].output[i];
-
-        // If destination is another unit -> visit it
-        // If it is a product/tailings outlet -> ignore it
-        if (dest >= 0 && dest < static_cast<int>(units.size())) {
-            mark_units(dest);
+    for (int destination : units[static_cast<std::size_t>(unit_num)].output) {
+        if (is_unit_id(destination)) {
+            mark_units(destination);
         }
     }
-}
-
-// Calls calculate_outputs() on every unit based on current feeds
-void Circuit::calculate_all_outputs() {
-    for (auto& unit : units) {
-        unit.calculate_outputs();
-    }
-}
-
-// Saves current feeds into old_feed to chech convergence later
-void Circuit::save_old_feeds() {
-    for (auto& unit : units) {
-        // Save the current feed into old_feed for each component
-        for (int comp = 0; comp < N_COMPONENTS; comp++) {
-            unit.old_feed[comp] = unit.feed[comp];
-        }
-        unit.old_feed_P = unit.old_feed[0];
-        unit.old_feed_G = unit.old_feed[1];
-        unit.old_feed_W = unit.old_feed[2];
-    }
-}
-
-// Clears all unit feeds before redistributing material
-void Circuit::clear_all_feeds() {
-    for (auto& unit : units) {
-        // Clear the feed for each component
-        for (int comp = 0; comp < N_COMPONENTS; comp++) {
-            unit.feed[comp] = 0.0;
-        }
-        unit.feed_P = 0.0;
-        unit.feed_G = 0.0;
-        unit.feed_W = 0.0;
-    }
-}
-
-// Adds a concentrate stream into a unit's feed
-void Circuit::add_to_unit_feed(int unit_idx, const std::array<double, N_COMPONENTS>& material) {
-    // Add the material to the feed for each component
-    for (int comp = 0; comp < N_COMPONENTS; comp++) {
-        units[unit_idx].feed[comp] += material[comp];
-    }
-    units[unit_idx].feed_P = units[unit_idx].feed[0];
-    units[unit_idx].feed_G = units[unit_idx].feed[1];
-    units[unit_idx].feed_W = units[unit_idx].feed[2];
-}
-
-// Fix data type mismatch for tails (double[N_COMPONENTS]) vs concentrate (vector<array<double,
-// N_COMPONENTS>>)
-
-// Adds a tails stream into a unit's feed
-// Needed because tails is stored as double[N_COMPONENTS]
-void Circuit::add_to_unit_feed(int unit_idx, const double material[N_COMPONENTS]) {
-    for (int comp = 0; comp < N_COMPONENTS; comp++) {
-        units[unit_idx].feed[comp] += material[comp];
-    }
-    units[unit_idx].feed_P = units[unit_idx].feed[0];
-    units[unit_idx].feed_G = units[unit_idx].feed[1];
-    units[unit_idx].feed_W = units[unit_idx].feed[2];
-}
-
-// Helper function to clear final product and tailings outputs before redistributing new material
-void Circuit::clear_final_outputs() {
-    for (auto& product : final_products) {
-        product.fill(0.0);
-    }
-
-    final_tailings.fill(0.0);
-}
-
-// Send every unit's outputs to the correct destination
-void Circuit::distribute_outputs() {
-    auto route_material = [this](int dest, const auto& material) {
-        if (dest >= 0 && dest < static_cast<int>(units.size())) {
-            add_to_unit_feed(dest, material);
-            return;
-        }
-
-        const int product_idx = dest - static_cast<int>(units.size());
-        if (product_idx < 0 || product_idx >= num_products()) {
-            return;
-        }
-
-        // Product IDs are fixed by the circuit vector format. The last product
-        // is final tailings; the earlier products are priced concentrates.
-        if (product_idx == num_products() - 1) {
-            for (int comp = 0; comp < N_COMPONENTS; comp++) {
-                final_tailings[comp] += material[comp];
-            }
-            return;
-        }
-
-        for (int comp = 0; comp < N_COMPONENTS; comp++) {
-            final_products[static_cast<std::size_t>(product_idx)][comp] += material[comp];
-        }
-    };
-
-    for (int u = 0; u < static_cast<int>(units.size()); u++) {
-        // Define the current unit being processed
-        CUnit& unit = units[u];
-
-        // Number of concentrate streams based on unit typw
-        // Type A: n_outputs = 2 -> num_c_streams = 1
-        // Type B: n_outputs = 3 -> num_c_streams = 2
-        int num_c_streams = unit.n_outputs - 1;
-
-        // Route concentrate streams to their destinations
-        for (int out = 0; out < num_c_streams; out++) {
-            int dest = unit.output[out];
-            route_material(dest, unit.concentrate[out]);
-        }
-
-        // The last output is always tails
-        int tails_dest = unit.output[unit.n_outputs - 1];
-        route_material(tails_dest, unit.tails);
-    }
-}
-
-// Checks whether the iterative simulation has converged
-bool Circuit::has_converged() const {
-    // Allowed relative change between old and new feeds
-    constexpr double tolerance = 1e-6;
-
-    // Small number to prevent division by zero
-    constexpr double min_denominator = 1e-12;
-
-    // Check each unit and each component for relative change in feed
-    for (const auto& unit : units) {
-        for (int comp = 0; comp < N_COMPONENTS; comp++) {
-            // Feed value from previous iteration
-            double old_val = unit.old_feed[comp];
-
-            // Feed value from current iteration
-            double new_val = unit.feed[comp];
-
-            // Denominator for relative change calculation (use max to avoid division by zero)
-            double denom = std::max(std::abs(old_val), min_denominator);
-
-            // Relative change between iterations
-            double rel_change = std::abs(new_val - old_val) / denom;
-
-            // Any component in any unit changed too much -> not converged
-            if (rel_change > tolerance) {
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-
-// Main circuit simulation
-double Circuit::evaluate() {
-    // Set a maximum number of iterations to prevent infinite loop
-    constexpr int max_iterations = 10000;
-
-    // External feed values
-    constexpr double palusznium_feed = 8.0;
-    constexpr double gormanium_feed = 12.0;
-    constexpr double waste_feed = 80.0;
-
-    // Initial feed into the feed destination unit
-    units[feed_dest_].feed[0] = palusznium_feed;
-    units[feed_dest_].feed[1] = gormanium_feed;
-    units[feed_dest_].feed[2] = waste_feed;
-    units[feed_dest_].feed_P = units[feed_dest_].feed[0];
-    units[feed_dest_].feed_G = units[feed_dest_].feed[1];
-    units[feed_dest_].feed_W = units[feed_dest_].feed[2];
-
-    for (int iter = 0; iter < max_iterations; iter++) {
-        // Each unit calculates its concentrate and tails outputs
-        calculate_all_outputs();
-
-        // Save current feeds before replacing them
-        save_old_feeds();
-
-        // Clear feeds so they can be rebuilt from routed outputs
-        clear_all_feeds();
-
-        // Add new external feeds for each component into the feed destination unit
-        units[feed_dest_].feed[0] += palusznium_feed;
-        units[feed_dest_].feed[1] += gormanium_feed;
-        units[feed_dest_].feed[2] += waste_feed;
-        units[feed_dest_].feed_P = units[feed_dest_].feed[0];
-        units[feed_dest_].feed_G = units[feed_dest_].feed[1];
-        units[feed_dest_].feed_W = units[feed_dest_].feed[2];
-
-        // Clear final product and tailings outputs before redistributing new material
-        clear_final_outputs();
-
-        // Send all unit outputs to their destinations
-        distribute_outputs();
-
-        // Stop if feeds are no longer changing significantly
-        if (has_converged()) {
-            cuprite::Stream pal_product{
-                final_products[0][0],  // pal
-                final_products[0][1],  // gor
-                final_products[0][2]   // waste
-            };
-
-            cuprite::Stream gor_product{
-                final_products[1][0],  // pal
-                final_products[1][1],  // gor
-                final_products[1][2]   // waste
-            };
-
-            int n_A = 0;
-            int n_B = 0;
-            for (const auto& unit : units) {
-                if (unit.n_outputs == 2) {
-                    n_A++;
-                } else if (unit.n_outputs == 3) {
-                    n_B++;
-                }
-            }
-            cuprite::CircuitDescriptor descriptor{n_A, n_B};
-
-            return cuprite::economic_value(pal_product, gor_product, descriptor,
-                                           cuprite::fixed_op_cost, cuprite::default_economics);
-        }
-    }
-
-    // If the loop reaches max_iterations, fallback to your worst-case equation
-    return cuprite::worst_case_value(waste_feed, cuprite::default_economics);
 }
