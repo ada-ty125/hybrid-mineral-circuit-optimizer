@@ -34,6 +34,16 @@ set_property(TEST speed_checker PROPERTY TIMEOUT 10)
 add_dependencies(speed_checker copy_data)
 
 
+add_executable(post_processing_test post_processing_test.cpp)
+target_link_libraries(post_processing_test circuitSimulator esegraph)
+target_include_directories(post_processing_test PRIVATE ../include)
+set_target_properties(post_processing_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/bin")
+add_test(NAME post_processing_test COMMAND post_processing_test
+         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests/bin")
+set_property(TEST post_processing_test PROPERTY LABELS post_processing)
+
+
 add_test(NAME executable COMMAND Circuit_Optimizer)
 
 # test_economics needs the reference CSV available at runtime under data/
