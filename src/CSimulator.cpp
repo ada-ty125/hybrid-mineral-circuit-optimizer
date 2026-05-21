@@ -1,6 +1,6 @@
 /**
  * @file CSimulator.cpp
- * @brief Implementation of the circuit simulator and the associated performance 
+ * @brief Implementation of the circuit simulator and the associated performance
  * evaluation function.
  *
  * This file contains the implementation of the CSimulator class, which provides
@@ -21,11 +21,10 @@
 #include <vector>
 #include <span>
 
-
 Simulator_Parameters default_simulator_parameters;
 
 /**
- * @brief Calculates the outputs of all units in the circuit based on their 
+ * @brief Calculates the outputs of all units in the circuit based on their
  * current feeds and parameters.
  *
  * This function iterates through each unit in the circuit and calls its
@@ -49,7 +48,6 @@ void CSimulator::calculate_all_outputs(Circuit& circuit, const Simulator_Paramet
  * @param circuit The circuit to simulate.
  */
 void CSimulator::save_old_feeds(Circuit& circuit) {
-
     // Loop though each unit and copy the current feed values to the old_feed arrays
     for (auto& unit : circuit.units) {
         for (int comp = 0; comp < N_COMPONENTS; comp++) {
@@ -85,7 +83,7 @@ void CSimulator::clear_all_feeds(Circuit& circuit) {
 /**
  * @brief Adds the specified material to the feed of a given unit in the circuit.
  *
- * This function takes a unit index and an array of material components, and adds 
+ * This function takes a unit index and an array of material components, and adds
  * these components to the corresponding feed values of the specified unit.
  *
  * @param circuit The circuit to simulate.
@@ -94,8 +92,7 @@ void CSimulator::clear_all_feeds(Circuit& circuit) {
  */
 void CSimulator::add_to_unit_feed(Circuit& circuit, int unit_idx,
                                   const std::array<double, N_COMPONENTS>& material) {
-
-    // Loop through each component and add the corresponding material to the unit's feed                                
+    // Loop through each component and add the corresponding material to the unit's feed
     for (int comp = 0; comp < N_COMPONENTS; comp++) {
         circuit.units[unit_idx].feed[comp] += material[comp];
     }
@@ -108,7 +105,7 @@ void CSimulator::add_to_unit_feed(Circuit& circuit, int unit_idx,
 /**
  * @brief Adds the specified material to the feed of a given unit in the circuit.
  *
- * This function takes a unit index and an array of material components, and adds 
+ * This function takes a unit index and an array of material components, and adds
  * these components to the corresponding feed values of the specified unit.
  *
  * @param circuit The circuit to simulate.
@@ -152,7 +149,6 @@ void CSimulator::clear_final_outputs(Circuit& circuit) {
  */
 void CSimulator::distribute_outputs(Circuit& circuit) {
     auto route_material = [&circuit](int dest, const auto& material) {
-
         // Check if the destination is a valid unit index
         if (dest >= 0 && dest < static_cast<int>(circuit.units.size())) {
             CSimulator::add_to_unit_feed(circuit, dest, material);
@@ -203,8 +199,8 @@ void CSimulator::distribute_outputs(Circuit& circuit) {
  * @brief Checks if the simulation has converged by comparing the current feed values
  * of each unit to their previous feed values.
  *
- * This function iterates through each unit in the circuit and calculates the relative change 
- * in feed values compared to the previous iteration. If any unit has a relative change 
+ * This function iterates through each unit in the circuit and calculates the relative change
+ * in feed values compared to the previous iteration. If any unit has a relative change
  * greater than the specified tolerance in the simulator parameters, the function returns false,
  * indicating that the simulation has not yet converged.
  *
@@ -214,16 +210,14 @@ void CSimulator::distribute_outputs(Circuit& circuit) {
  */
 bool CSimulator::has_converged(const Circuit& circuit,
                                const Simulator_Parameters& simulator_parameters) {
-    
     // Loops through each unit and component
     for (const auto& unit : circuit.units) {
         for (int comp = 0; comp < N_COMPONENTS; comp++) {
-
             // Calculate the relative change in feed values for this component
             double old_val = unit.old_feed[comp];
             double new_val = unit.feed[comp];
 
-            // Use the maximum of the absolute old value and a small minimum denominator to avoid 
+            // Use the maximum of the absolute old value and a small minimum denominator to avoid
             // division by zero
             double denom = std::max(std::abs(old_val), simulator_parameters.min_denominator);
             double rel_change = std::abs(new_val - old_val) / denom;
@@ -241,10 +235,10 @@ bool CSimulator::has_converged(const Circuit& circuit,
  * @brief Evaluates the performance of a given circuit configuration by simulating its operation and
  * calculating a performance score based on the final product and tailings outputs.
  *
- * This function initializes the feed values for the circuit, then iteratively calculates the outputs,
- * updates the feeds, and checks for convergence. If the simulation converges within the maximum number
- * of iterations, it calculates the economic value of the final products and returns it as the performance
- * score.
+ * This function initializes the feed values for the circuit, then iteratively calculates the
+ * outputs, updates the feeds, and checks for convergence. If the simulation converges within the
+ * maximum number of iterations, it calculates the economic value of the final products and returns
+ * it as the performance score.
  *
  * @param circuit The circuit to simulate.
  * @param params The simulator parameters.
@@ -313,11 +307,11 @@ double CSimulator::evaluate(Circuit& circuit, const Simulator_Parameters& simula
 }
 
 /**
- * @brief Calculates the circuit performance for a given circuit based on its graphical 
+ * @brief Calculates the circuit performance for a given circuit based on its graphical
  * representation as a CSRGraph.
  *
- * This function takes a CSRGraph representation of the circuit and simulator parameters, 
- * extracts the necessary information to construct a Circuit object, and then evaluates the 
+ * This function takes a CSRGraph representation of the circuit and simulator parameters,
+ * extracts the necessary information to construct a Circuit object, and then evaluates the
  * performance of that circuit.
  *
  * @param graph The CSRGraph representation of the circuit to evaluate.
@@ -371,11 +365,11 @@ double circuit_performance(const ESE::Graph& graph, Simulator_Parameters simulat
 }
 
 /**
- * @brief Calculates the circuit performance for a given circuit based on its vector 
+ * @brief Calculates the circuit performance for a given circuit based on its vector
  * representation as a span of integers.
  *
- * This function takes a span of integers representing the circuit configuration and simulator 
- * parameters, constructs a Circuit object, and then evaluates the performance of that circuit. 
+ * This function takes a span of integers representing the circuit configuration and simulator
+ * parameters, constructs a Circuit object, and then evaluates the performance of that circuit.
  *
  * @param circuit_span The vector representation of the circuit to evaluate.
  * @return The performance score of the circuit based on the economic value of its outputs.
