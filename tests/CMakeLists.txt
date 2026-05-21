@@ -51,9 +51,17 @@ add_test(NAME executable
              OMP_NUM_THREADS=${CUPRITE_EXECUTABLE_TEST_THREADS}
              OMP_DYNAMIC=FALSE
              $<TARGET_FILE:Circuit_Optimizer>
-             16 3 0.935 0.214 2 3 1 1
-             fixed
-             "${CMAKE_BINARY_DIR}/tests/bin/executable_smoke.png")
+             --population-size 16
+             --max-iterations 3
+             --crossover-probability 0.935
+             --mutation-probability 0.214
+             --tournament-size 2
+             --early-stop-patience 3
+             --num-crossover-points 1
+             --elite-count 1
+             --mode fixed
+             --output "${CMAKE_BINARY_DIR}/tests/bin/executable_smoke"
+             --output-format dot)
 set_property(TEST executable PROPERTY PROCESSORS ${CUPRITE_EXECUTABLE_TEST_THREADS})
 
 # test_economics needs the reference CSV available at runtime under data/
