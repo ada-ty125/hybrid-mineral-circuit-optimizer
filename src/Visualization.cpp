@@ -8,18 +8,25 @@
  */
 
 #include "CSRGraph.h"
+#include "CCircuit.h"
+#include "CSimulator.h"
+#include "Economics.h"
 #include "RequiredFunctions.h"
 
+#include <chrono>
 #include <cctype>
 #include <cstddef>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <numeric>
 #include <ostream>
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
 
@@ -180,6 +187,8 @@ std::string lower_extension(const std::filesystem::path& path) {
 
 bool requests_png(const std::filesystem::path& path) { return lower_extension(path) == ".png"; }
 
+bool requests_gif(const std::filesystem::path& path) { return lower_extension(path) == ".gif"; }
+
 std::string shell_quote(std::string_view value) {
     std::string quoted = "'";
     for (char c : value) {
@@ -249,6 +258,428 @@ void write_visualization_file(const char* filename, Writer write_dot, const char
     }
 }
 
+struct ParsedVisualCircuit {
+    std::size_t num_inputs = 0;
+    std::size_t num_units = 0;
+    std::size_t num_products = 0;
+    int feed_destination = 0;
+    std::vector<int> output_counts;
+    std::vector<std::vector<int>> destinations;
+};
+
+struct FlowEdge {
+    std::string id;
+    std::string source_id;
+    std::string target_id;
+    std::string label;
+    std::vector<double> flows;
+    double total_flow = 0.0;
+};
+
+struct VisualisationData {
+    ParsedVisualCircuit parsed;
+    std::vector<std::string> component_names;
+    std::vector<double> feed_rates;
+    std::vector<std::vector<double>> final_products;
+    std::vector<double> final_tailings;
+    std::vector<FlowEdge> edges;
+    double score = 0.0;
+    std::size_t type_a_count = 0;
+    std::size_t type_b_count = 0;
+};
+
+std::string json_escape(std::string_view text) {
+    std::string escaped;
+    escaped.reserve(text.size() + 2);
+    escaped += '"';
+    for (char c : text) {
+        switch (c) {
+            case '\\':
+                escaped += "\\\\";
+                break;
+            case '"':
+                escaped += "\\\"";
+                break;
+            case '\n':
+                escaped += "\\n";
+                break;
+            case '\r':
+                escaped += "\\r";
+                break;
+            case '\t':
+                escaped += "\\t";
+                break;
+            default:
+                escaped += c;
+                break;
+        }
+    }
+    escaped += '"';
+    return escaped;
+}
+
+double flow_sum(const std::vector<double>& values) {
+    return std::accumulate(values.begin(), values.end(), 0.0);
+}
+
+double component_at(const std::vector<double>& values, std::size_t index) {
+    return index < values.size() ? values[index] : 0.0;
+}
+
+double grade_percent(const std::vector<double>& stream, std::size_t component) {
+    const double total = flow_sum(stream);
+    if (total <= 0.0) {
+        return 0.0;
+    }
+    return 100.0 * component_at(stream, component) / total;
+}
+
+double recovery_percent(const std::vector<double>& stream, std::size_t component,
+                        const std::vector<double>& feed) {
+    const double feed_component = component_at(feed, component);
+    if (feed_component <= 0.0) {
+        return 0.0;
+    }
+    return 100.0 * component_at(stream, component) / feed_component;
+}
+
+std::string component_colour(std::size_t component) {
+    static const std::vector<std::string> colours = {"#d6a100", "#2878c8", "#6f7b85", "#17a589",
+                                                     "#8e44ad"};
+    return colours[component % colours.size()];
+}
+
+std::vector<double> sized_flow(std::vector<double> values, std::size_t size) {
+    values.resize(size, 0.0);
+    return values;
+}
+
+bool parse_visual_circuit(std::span<const int> values, ParsedVisualCircuit& parsed,
+                          std::string& error) {
+    if (values.size() < 5) {
+        error = "circuit vector is too short";
+        return false;
+    }
+    if (values[0] < 0 || values[1] < 0 || values[2] < 0) {
+        error = "negative circuit size field";
+        return false;
+    }
+
+    parsed.num_inputs = static_cast<std::size_t>(values[0]);
+    parsed.num_units = static_cast<std::size_t>(values[1]);
+    parsed.num_products = static_cast<std::size_t>(values[2]);
+
+    if (parsed.num_inputs != 1) {
+        error = "only one input stream is supported";
+        return false;
+    }
+    if (parsed.num_products != 3) {
+        error = "expected three product streams";
+        return false;
+    }
+    if (values.size() < 3 + parsed.num_units + 1) {
+        error = "missing unit output counts or feed target";
+        return false;
+    }
+
+    parsed.output_counts.assign(parsed.num_units, 0);
+    std::size_t output_count_sum = 0;
+    for (std::size_t unit = 0; unit < parsed.num_units; ++unit) {
+        const int output_count = values[3 + unit];
+        if (output_count != 2 && output_count != 3) {
+            error = "unit output count must be 2 or 3";
+            return false;
+        }
+        parsed.output_counts[unit] = output_count;
+        output_count_sum += static_cast<std::size_t>(output_count);
+    }
+
+    const std::size_t expected_size = 3 + parsed.num_units + 1 + output_count_sum;
+    if (values.size() != expected_size) {
+        error = "circuit vector length does not match header";
+        return false;
+    }
+
+    const std::size_t feed_index = 3 + parsed.num_units;
+    parsed.feed_destination = values[feed_index];
+    parsed.destinations.assign(parsed.num_units, {});
+    std::size_t destination_index = feed_index + 1;
+    for (std::size_t unit = 0; unit < parsed.num_units; ++unit) {
+        auto& unit_destinations = parsed.destinations[unit];
+        unit_destinations.reserve(static_cast<std::size_t>(parsed.output_counts[unit]));
+        for (int output_id = 0; output_id < parsed.output_counts[unit]; ++output_id) {
+            unit_destinations.push_back(values[destination_index++]);
+        }
+    }
+    return true;
+}
+
+bool build_visualisation_data(std::span<const int> values, VisualisationData& data,
+                              std::string& error) {
+    if (!parse_visual_circuit(values, data.parsed, error)) {
+        return false;
+    }
+
+    const Simulator_Parameters& params = default_simulator_parameters;
+    const std::size_t component_count = static_cast<std::size_t>(params.n_components);
+    data.component_names = params.component_names;
+    data.component_names.resize(component_count);
+    for (std::size_t comp = 0; comp < component_count; ++comp) {
+        if (data.component_names[comp].empty()) {
+            data.component_names[comp] = "Component " + std::to_string(comp);
+        }
+    }
+
+    Circuit circuit;
+    const bool valid_for_simulation = circuit.initialise(values, params);
+    data.score =
+        cuprite::worst_case_value(params.input_feed_rates.back(), cuprite::default_economics);
+    if (valid_for_simulation) {
+        data.score = CSimulator::evaluate(circuit, params);
+    }
+
+    data.feed_rates = params.input_feed_rates;
+    data.feed_rates.resize(component_count, 0.0);
+
+    data.final_products =
+        valid_for_simulation ? circuit.final_products : std::vector<std::vector<double>>{};
+    data.final_products.resize(data.parsed.num_products, std::vector<double>(component_count, 0.0));
+    for (auto& product : data.final_products) {
+        product.resize(component_count, 0.0);
+    }
+
+    data.final_tailings = valid_for_simulation ? circuit.final_tailings : std::vector<double>{};
+    data.final_tailings.resize(component_count, 0.0);
+
+    data.edges.clear();
+    data.edges.push_back({"edge_feed", "feed",
+                          circuit_target_name(data.parsed.feed_destination, data.parsed.num_units),
+                          "feed", data.feed_rates, flow_sum(data.feed_rates)});
+
+    for (std::size_t unit = 0; unit < data.parsed.num_units; ++unit) {
+        for (std::size_t output_id = 0; output_id < data.parsed.destinations[unit].size();
+             ++output_id) {
+            std::vector<double> flows(component_count, 0.0);
+            if (valid_for_simulation && unit < circuit.units.size()) {
+                const CUnit& sim_unit = circuit.units[unit];
+                if (output_id + 1 < static_cast<std::size_t>(sim_unit.n_outputs) &&
+                    output_id < sim_unit.concentrate.size()) {
+                    flows = sized_flow(sim_unit.concentrate[output_id], component_count);
+                } else if (output_id < static_cast<std::size_t>(sim_unit.n_outputs)) {
+                    flows = sized_flow(sim_unit.tails, component_count);
+                }
+            }
+
+            const int destination = data.parsed.destinations[unit][output_id];
+            const std::string edge_id =
+                "edge_" + std::to_string(unit) + "_" + std::to_string(output_id);
+            data.edges.push_back(
+                {edge_id, circuit_node_name(unit),
+                 circuit_target_name(destination, data.parsed.num_units),
+                 output_label(static_cast<std::size_t>(data.parsed.output_counts[unit]), output_id),
+                 flows, flow_sum(flows)});
+        }
+    }
+
+    data.type_a_count = 0;
+    data.type_b_count = 0;
+    for (int output_count : data.parsed.output_counts) {
+        if (output_count == 2) {
+            ++data.type_a_count;
+        } else if (output_count == 3) {
+            ++data.type_b_count;
+        }
+    }
+    return true;
+}
+
+void write_json_number_array(std::ostream& output, const std::vector<double>& values) {
+    output << "[";
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        if (i > 0) {
+            output << ", ";
+        }
+        output << std::setprecision(12) << values[i];
+    }
+    output << "]";
+}
+
+void write_json_number_matrix(std::ostream& output,
+                              const std::vector<std::vector<double>>& values) {
+    output << "[";
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        if (i > 0) {
+            output << ", ";
+        }
+        write_json_number_array(output, values[i]);
+    }
+    output << "]";
+}
+
+bool write_animation_payload_json(const VisualisationData& data,
+                                  const std::filesystem::path& payload_path) {
+    std::ofstream output(payload_path);
+    if (!output) {
+        std::cerr << "Could not open animation payload file: " << payload_path << "\n";
+        return false;
+    }
+
+    output << "{\n";
+    output << "  \"components\": [\n";
+    for (std::size_t comp = 0; comp < data.component_names.size(); ++comp) {
+        output << "    {\"name\": " << json_escape(data.component_names[comp])
+               << ", \"colour\": " << json_escape(component_colour(comp)) << "}";
+        output << (comp + 1 == data.component_names.size() ? "\n" : ",\n");
+    }
+    output << "  ],\n";
+    output << "  \"feed_rates\": ";
+    write_json_number_array(output, data.feed_rates);
+    output << ",\n";
+
+    output << "  \"nodes\": [\n";
+    output << "    {\"id\": \"feed\", \"kind\": \"feed\", \"label\": \"Feed\"}";
+    for (std::size_t unit = 0; unit < data.parsed.num_units; ++unit) {
+        output << ",\n    {\"id\": " << json_escape(circuit_node_name(unit))
+               << ", \"kind\": \"unit\", \"label\": " << json_escape("Unit " + std::to_string(unit))
+               << ", \"unit_index\": " << unit << ", \"unit_type\": "
+               << json_escape(data.parsed.output_counts[unit] == 3 ? "B" : "A") << "}";
+    }
+    const std::vector<std::string> product_ids = {"palusznium_product", "gormanium_product",
+                                                  "tailings_product"};
+    const std::vector<std::string> product_labels = {"Palusznium product", "Gormanium product",
+                                                     "Tailings"};
+    for (std::size_t product = 0; product < data.parsed.num_products; ++product) {
+        output << ",\n    {\"id\": " << json_escape(product_ids[product])
+               << ", \"kind\": \"product\", \"label\": " << json_escape(product_labels[product])
+               << ", \"product_index\": " << product << "}";
+    }
+    output << "\n  ],\n";
+
+    output << "  \"edges\": [\n";
+    for (std::size_t i = 0; i < data.edges.size(); ++i) {
+        const FlowEdge& edge = data.edges[i];
+        output << "    {\"id\": " << json_escape(edge.id)
+               << ", \"source\": " << json_escape(edge.source_id)
+               << ", \"target\": " << json_escape(edge.target_id)
+               << ", \"label\": " << json_escape(edge.label) << ", \"flows\": ";
+        write_json_number_array(output, edge.flows);
+        output << ", \"total_flow\": " << std::setprecision(12) << edge.total_flow << "}";
+        output << (i + 1 == data.edges.size() ? "\n" : ",\n");
+    }
+    output << "  ],\n";
+
+    output << "  \"results\": {\n";
+    output << "    \"score\": " << std::setprecision(12) << data.score << ",\n";
+    output << "    \"type_a_count\": " << data.type_a_count << ",\n";
+    output << "    \"type_b_count\": " << data.type_b_count << ",\n";
+    output << "    \"pal_recovery\": "
+           << recovery_percent(data.final_products[0], 0, data.feed_rates) << ",\n";
+    output << "    \"pal_grade\": " << grade_percent(data.final_products[0], 0) << ",\n";
+    output << "    \"gor_recovery\": "
+           << recovery_percent(data.final_products[1], 1, data.feed_rates) << ",\n";
+    output << "    \"gor_grade\": " << grade_percent(data.final_products[1], 1) << ",\n";
+    output << "    \"products\": ";
+    write_json_number_matrix(output, data.final_products);
+    output << ",\n";
+    output << "    \"tailings\": ";
+    write_json_number_array(output, data.final_tailings);
+    output << "\n  }\n";
+    output << "}\n";
+
+    if (!output) {
+        std::cerr << "Could not write animation payload file: " << payload_path << "\n";
+        return false;
+    }
+    return true;
+}
+
+std::filesystem::path animation_script_path() {
+    std::vector<std::filesystem::path> candidates;
+#ifdef CIRCUIT_PROJECT_SOURCE_DIR
+    candidates.push_back(std::filesystem::path(CIRCUIT_PROJECT_SOURCE_DIR) / "tools" /
+                         "animate_circuit.py");
+#endif
+    candidates.push_back(std::filesystem::current_path() / "tools" / "animate_circuit.py");
+    candidates.push_back(std::filesystem::current_path() / ".." / "tools" / "animate_circuit.py");
+    candidates.push_back(std::filesystem::current_path() / ".." / ".." / "tools" /
+                         "animate_circuit.py");
+
+    for (const auto& candidate : candidates) {
+        std::error_code error;
+        if (std::filesystem::exists(candidate, error)) {
+            return candidate;
+        }
+    }
+    return {};
+}
+
+std::filesystem::path temporary_payload_path_for(const std::filesystem::path& output_path) {
+    const auto tick = std::chrono::steady_clock::now().time_since_epoch().count();
+    std::filesystem::path payload_path = std::filesystem::temp_directory_path();
+    payload_path /=
+        output_path.stem().string() + "_circuit_animation_" + std::to_string(tick) + ".json";
+    return payload_path;
+}
+
+bool render_python_animation(const std::filesystem::path& payload_path,
+                             const std::filesystem::path& output_path) {
+    const std::filesystem::path script_path = animation_script_path();
+    if (script_path.empty()) {
+        std::cerr << "Could not find Python animation script tools/animate_circuit.py\n";
+        return false;
+    }
+
+    const std::filesystem::path mpl_config_dir =
+        std::filesystem::temp_directory_path() / "cuprite_matplotlib";
+    const std::filesystem::path font_cache_dir =
+        std::filesystem::temp_directory_path() / "cuprite_font_cache";
+    std::error_code error;
+    std::filesystem::create_directories(mpl_config_dir, error);
+    std::filesystem::create_directories(font_cache_dir, error);
+
+    const std::string command = "MPLCONFIGDIR=" + shell_quote(mpl_config_dir.string()) +
+                                " XDG_CACHE_HOME=" + shell_quote(font_cache_dir.string()) +
+                                " python3 " + shell_quote(script_path.string()) + " " +
+                                shell_quote(payload_path.string()) + " " +
+                                shell_quote(output_path.string());
+    const int status = std::system(command.c_str());
+    if (status != 0) {
+        std::cerr << "Could not render animated GIF visualization: " << output_path << "\n";
+        return false;
+    }
+    return true;
+}
+
+void write_python_animation(std::span<const int> values, const char* filename) {
+    const std::filesystem::path output_path(filename);
+    VisualisationData data;
+    std::string error;
+    if (!build_visualisation_data(values, data, error)) {
+        std::filesystem::path fallback_path = output_path;
+        fallback_path.replace_extension(".dot");
+        std::ofstream output(fallback_path);
+        if (output) {
+            write_error_dot(output, error);
+        }
+        std::cerr << "Could not build GIF animation data. Wrote DOT error output to "
+                  << fallback_path << "\n";
+        return;
+    }
+
+    const std::filesystem::path payload_path = temporary_payload_path_for(output_path);
+    if (!write_animation_payload_json(data, payload_path)) {
+        return;
+    }
+
+    render_python_animation(payload_path, output_path);
+
+    std::error_code remove_error;
+    std::filesystem::remove(payload_path, remove_error);
+    if (remove_error) {
+        std::cerr << "Could not remove temporary animation payload file: " << payload_path << "\n";
+    }
+}
+
 }  // namespace
 
 /**
@@ -270,6 +701,12 @@ void write_visualization_file(const char* filename, Writer write_dot, const char
  * @param filename Path to the DOT file to write.
  */
 void plot_span(std::span<const int> const values, const char* filename) {
+    const std::filesystem::path output_path(filename);
+    if (requests_gif(output_path)) {
+        write_python_animation(values, filename);
+        return;
+    }
+
     write_visualization_file(
         filename,
         [values](std::ostream& output) {

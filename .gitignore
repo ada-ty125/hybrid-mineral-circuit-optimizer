@@ -52,6 +52,7 @@ examples/rng/linux/
 # Local run artifacts
 convergence.csv
 optimal_circuit.png
+optimal_circuit.gif
 
 
 scripts/

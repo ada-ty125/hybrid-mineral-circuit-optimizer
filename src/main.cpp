@@ -79,7 +79,7 @@ void custom_mutator(std::span<const int> const fixed_prefix, std::span<int> valu
 
 int main(int argc, char* argv[]) {
     Algorithm_Parameters params;
-    std::string output_image = "optimal_circuit.png";
+    std::string output_image = "optimal_circuit.gif";
 
     if (argc > 1) params.population_size = std::stoi(argv[1]);
     if (argc > 2) params.max_iterations = std::stoi(argv[2]);

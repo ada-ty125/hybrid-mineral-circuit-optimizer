@@ -28,6 +28,8 @@ set_target_properties( circuitEconomics
 
 add_library(circuitSimulator CUnit.cpp CCircuit.cpp CSimulator.cpp Visualization.cpp)
 target_link_libraries(circuitSimulator PUBLIC circuitEconomics)
+target_compile_definitions(circuitSimulator PRIVATE
+    CIRCUIT_PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 set_target_properties( circuitSimulator
     PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
