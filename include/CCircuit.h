@@ -10,6 +10,7 @@
 #include <array>
 #include <span>
 #include <vector>
+#include <string>
 
 struct Simulator_Parameters {
     // Solver Mechanics
