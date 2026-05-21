@@ -7,14 +7,14 @@
 #include "RequiredFunctions.h"
 
 struct Algorithm_Parameters {
-    int max_iterations = 1000;
-    int population_size = 200;
-    double crossover_probability = 0.85;
-    double mutation_probability = 0.05;
-    int early_stop_patience = 100;
-    int tournament_size = 3;
-    int num_crossover_points = 2;
-    double gaussian_sigma = 0.1;
+    int max_iterations = 988;
+    int population_size = 362;
+    double crossover_probability = 0.9350;
+    double mutation_probability = 0.2142;
+    int early_stop_patience = 330;
+    int tournament_size = 2;
+    int num_crossover_points = 1;
+    double gaussian_sigma = 0.2709;
     int elite_count = 1;
 };
 

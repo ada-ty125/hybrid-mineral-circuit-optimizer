@@ -108,5 +108,5 @@ jobs:
 
     - name: Run the tests
       run: |
-          make all
-          ctest -VV
+          make -j "$(nproc)" all
+          ctest --parallel "$(nproc)" -VV

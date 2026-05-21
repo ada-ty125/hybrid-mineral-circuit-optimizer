@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 # set the project name
-project(Genetic_Algorithm)
+project(Genetic_Algorithm LANGUAGES CXX)
 
 set(TEAM_NAME "Cuprite")
 set(CMAKE_CXX_STANDARD 20)
@@ -35,5 +35,4 @@ add_subdirectory(src)
 include(CTest)
 enable_testing()
 add_subdirectory(tests)
-
 

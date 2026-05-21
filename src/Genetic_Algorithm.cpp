@@ -4,12 +4,20 @@
 #include <fstream>
 #include <iostream>
 #include <numeric>
+
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 Algorithm_Parameters default_ga_parameters;
 
 namespace GA_Operators {
 
+/**
+ * @brief Selects a high-performing parent using K-way tournament selection.
+ * @details Randomly samples K competitors and rewards the ordinal winner to direct selection
+ * pressure.
+ */
 std::size_t tournament_selection(const std::vector<Individual>& pop, int tournament_size,
                                  std::mt19937& rng) {
     std::uniform_int_distribution<std::size_t> dist(0, pop.size() - 1);
@@ -25,6 +33,11 @@ std::size_t tournament_selection(const std::vector<Individual>& pop, int tournam
     return best_idx;
 }
 
+/**
+ * @brief Recombines discrete structure chromosomes via multi-point segment swapping.
+ * @details Extracts unique cut points to split and alternate localized circuit modules between
+ * parents.
+ */
 void multi_point_crossover(const std::vector<int>& parent1, const std::vector<int>& parent2,
                            std::vector<int>& child1, std::vector<int>& child2, int num_points,
                            std::mt19937& rng) {
@@ -55,6 +68,9 @@ void multi_point_crossover(const std::vector<int>& parent1, const std::vector<in
     }
 }
 
+/**
+ * @brief Blends continuous numerical dimensions via parametric linear interpolation.
+ */
 void linear_crossover(const std::vector<double>& parent1, const std::vector<double>& parent2,
                       std::vector<double>& child1, std::vector<double>& child2, std::mt19937& rng) {
     std::uniform_real_distribution<double> dist(0.0, 1.0);
@@ -65,6 +81,9 @@ void linear_crossover(const std::vector<double>& parent1, const std::vector<doub
     }
 }
 
+/**
+ * @brief Introduces small Gaussian adjustments to real variables with boundary enforcement.
+ */
 void gaussian_mutation(std::vector<double>& vec, double mutation_rate, double sigma,
                        std::mt19937& rng) {
     std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
@@ -79,6 +98,12 @@ void gaussian_mutation(std::vector<double>& vec, double mutation_rate, double si
 
 }  // namespace GA_Operators
 
+/**
+ * @brief Unified optimization core deploying (mu + lambda) replacement and localized retries.
+ * @details Implements incremental OpenMP evaluation, incest prevention, and continuous seeding
+ * heuristics. If breeding constraints fail, it drops parent cloning and injects fresh valid
+ * randomized explorers.
+ */
 double optimize_hybrid(
     std::span<const int> const fixed_prefix, std::vector<int>& best_discrete_solution,
     std::vector<double>& best_continuous_solution,
@@ -91,14 +116,41 @@ double optimize_hybrid(
     std::size_t pop_size = params.population_size;
     std::vector<Individual> population(pop_size);
 
+    std::normal_distribution<double> noise_dist(0.0, 0.05);
+    std::uniform_real_distribution<double> uni_dist(0.0, 1.0);
+    std::size_t biased_count = static_cast<std::size_t>(pop_size * 0.25);
+
+    // Initial Seeding Phase: Blends pure random states with industry-informed continuous baselines
     for (std::size_t i = 0; i < pop_size; ++i) {
         population[i].discrete_vector.resize(discrete_extent);
         population[i].continuous_vector.resize(continuous_extent);
+
+        int attempt_count = 0;
+        const int MAX_ATTEMPTS = 500;
+        bool is_valid = false;
+
         do {
             ga_functions.vector_generator(fixed_prefix, population[i].discrete_vector, global_rng);
-        } while (!validity_checker(population[i].discrete_vector));
-        if (ga_functions.continuous_generator) {
-            ga_functions.continuous_generator(population[i].continuous_vector, global_rng);
+            is_valid = validity_checker(population[i].discrete_vector);
+            attempt_count++;
+
+            if (!is_valid && attempt_count >= MAX_ATTEMPTS) {
+                std::fill(population[i].discrete_vector.begin(),
+                          population[i].discrete_vector.end(), 0);
+                break;
+            }
+        } while (!is_valid);
+
+        if (continuous_extent > 0) {
+            if (i < biased_count) {
+                for (double& x : population[i].continuous_vector) {
+                    x = std::clamp(0.5 + noise_dist(global_rng), 0.0, 1.0);
+                }
+            } else {
+                for (double& x : population[i].continuous_vector) {
+                    x = uni_dist(global_rng);
+                }
+            }
         }
     }
 
@@ -111,18 +163,15 @@ double optimize_hybrid(
         metrics_log << "Generation,CurrentBest,GlobalBest\n";
     }
 
-    for (int iter = 0; iter < params.max_iterations; ++iter) {
-// Parallel evaluation of fitness scores
+    // Initial baseline grading loop for generation zero
 #pragma omp parallel for
-        for (std::size_t i = 0; i < pop_size; ++i) {
-            if (validity_checker(population[i].discrete_vector)) {
-                population[i].fitness = fitness_function(population[i].discrete_vector,
-                                                         population[i].continuous_vector);
-            } else {
-                population[i].fitness = -1e12;
-            }
-        }
+    for (std::size_t i = 0; i < pop_size; ++i) {
+        population[i].fitness =
+            fitness_function(population[i].discrete_vector, population[i].continuous_vector);
+    }
 
+    for (int iter = 0; iter < params.max_iterations; ++iter) {
+        // Track the current champion across the live array
         std::size_t best_idx = 0;
         double current_gen_best = -1e12;
         for (std::size_t i = 0; i < pop_size; ++i) {
@@ -150,88 +199,159 @@ double optimize_hybrid(
             break;
         }
 
-        // Adaptive mutation to escape local optima
+        // Mutation Rate Shocking: Shifts exploration gears when optimization stalls
         double current_mut_prob = params.mutation_probability;
         if (patience_counter > params.early_stop_patience / 2) {
-            current_mut_prob = std::min(1.0, current_mut_prob * 2.0);
+            current_mut_prob = std::min(1.0, current_mut_prob * 2.5);
         }
 
-        std::vector<Individual> next_generation(pop_size);
+        // Generate offspring equal to population size to execute full pool competition
+        std::vector<Individual> children(pop_size);
 
-        // Elitism: Sort population indices by fitness
-        std::vector<std::size_t> sorted_indices(pop_size);
-        std::iota(sorted_indices.begin(), sorted_indices.end(), 0);
-        std::sort(sorted_indices.begin(), sorted_indices.end(),
-                  [&population](std::size_t a, std::size_t b) {
-                      return population[a].fitness > population[b].fitness;
-                  });
-
-        // Copy top 'elite_count' individuals directly to the next generation
-        std::size_t actual_elites =
-            std::min(static_cast<std::size_t>(params.elite_count), pop_size);
-        for (std::size_t e = 0; e < actual_elites; ++e) {
-            next_generation[e] = population[sorted_indices[e]];
-        }
-
-// Parallel reproduction with thread-safe localized RNG
+// Parallel Generation Flow: Thread-safe localized pipelines running concurrently
 #pragma omp parallel
         {
-            std::mt19937 local_rng(base_seed + omp_get_thread_num() + iter);
+            int thread_id = 0;
+#ifdef _OPENMP
+            thread_id = omp_get_thread_num();
+#endif
+            std::mt19937 local_rng(base_seed + thread_id + iter);
             std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
 
 #pragma omp for schedule(dynamic)
-            for (std::size_t i = actual_elites; i < pop_size; i += 2) {
+            for (std::size_t i = 0; i < pop_size; i += 2) {
                 std::size_t p1 = GA_Operators::tournament_selection(
                     population, params.tournament_size, local_rng);
                 std::size_t p2 = GA_Operators::tournament_selection(
                     population, params.tournament_size, local_rng);
 
-                Individual c1 = population[p1];
-                Individual c2 = population[p2];
+                for (int retry = 0; retry < 5 && p1 == p2; ++retry) {
+                    p2 = GA_Operators::tournament_selection(population, params.tournament_size,
+                                                            local_rng);
+                }
 
-                if (prob_dist(local_rng) < params.crossover_probability) {
-                    GA_Operators::multi_point_crossover(population[p1].discrete_vector,
-                                                        population[p2].discrete_vector,
-                                                        c1.discrete_vector, c2.discrete_vector,
-                                                        params.num_crossover_points, local_rng);
+                Individual c1_best = population[p1];
+                Individual c2_best = population[p2];
+                bool c1_any_valid = false;
+                bool c2_any_valid = false;
+
+                for (int attempt = 0; attempt < 8; ++attempt) {
+                    Individual tmp_c1 = population[p1];
+                    Individual tmp_c2 = population[p2];
+
+                    if (prob_dist(local_rng) < params.crossover_probability) {
+                        GA_Operators::multi_point_crossover(
+                            population[p1].discrete_vector, population[p2].discrete_vector,
+                            tmp_c1.discrete_vector, tmp_c2.discrete_vector,
+                            params.num_crossover_points, local_rng);
+                        if (continuous_extent > 0) {
+                            GA_Operators::linear_crossover(
+                                population[p1].continuous_vector, population[p2].continuous_vector,
+                                tmp_c1.continuous_vector, tmp_c2.continuous_vector, local_rng);
+                        }
+                    }
+
+                    ga_functions.vector_mutator(fixed_prefix, tmp_c1.discrete_vector,
+                                                current_mut_prob, local_rng);
                     if (continuous_extent > 0) {
-                        GA_Operators::linear_crossover(
-                            population[p1].continuous_vector, population[p2].continuous_vector,
-                            c1.continuous_vector, c2.continuous_vector, local_rng);
+                        GA_Operators::gaussian_mutation(tmp_c1.continuous_vector, current_mut_prob,
+                                                        params.gaussian_sigma, local_rng);
+                    }
+
+                    ga_functions.vector_mutator(fixed_prefix, tmp_c2.discrete_vector,
+                                                current_mut_prob, local_rng);
+                    if (continuous_extent > 0) {
+                        GA_Operators::gaussian_mutation(tmp_c2.continuous_vector, current_mut_prob,
+                                                        params.gaussian_sigma, local_rng);
+                    }
+
+                    if (!c1_any_valid && validity_checker(tmp_c1.discrete_vector)) {
+                        c1_best = tmp_c1;
+                        c1_any_valid = true;
+                    }
+                    if (!c2_any_valid && (i + 1 < pop_size) &&
+                        validity_checker(tmp_c2.discrete_vector)) {
+                        c2_best = tmp_c2;
+                        c2_any_valid = true;
+                    }
+
+                    if (c1_any_valid && (i + 1 >= pop_size || c2_any_valid)) {
+                        break;
                     }
                 }
 
-                // Mutator operator handles probability internally per gene
-                ga_functions.vector_mutator(fixed_prefix, c1.discrete_vector, current_mut_prob,
-                                            local_rng);
-                if (continuous_extent > 0) {
-                    GA_Operators::gaussian_mutation(c1.continuous_vector, current_mut_prob,
-                                                    params.gaussian_sigma, local_rng);
+                // Explorer Injection: Enforces unique structural trials over parent clones
+                if (!c1_any_valid) {
+                    int exp_attempts1 = 0;
+                    bool exp1_valid = false;
+                    do {
+                        ga_functions.vector_generator(fixed_prefix, c1_best.discrete_vector,
+                                                      local_rng);
+                        exp1_valid = validity_checker(c1_best.discrete_vector);
+                        exp_attempts1++;
+                        if (!exp1_valid && exp_attempts1 >= 500) {
+                            std::fill(c1_best.discrete_vector.begin(),
+                                      c1_best.discrete_vector.end(), 0);
+                            break;
+                        }
+                    } while (!exp1_valid);
+
+                    if (continuous_extent > 0) {
+                        for (double& x : c1_best.continuous_vector) x = uni_dist(local_rng);
+                    }
                 }
 
-                ga_functions.vector_mutator(fixed_prefix, c2.discrete_vector, current_mut_prob,
-                                            local_rng);
-                if (continuous_extent > 0) {
-                    GA_Operators::gaussian_mutation(c2.continuous_vector, current_mut_prob,
-                                                    params.gaussian_sigma, local_rng);
+                if (!c2_any_valid && (i + 1 < pop_size)) {
+                    int exp_attempts2 = 0;
+                    bool exp2_valid = false;
+                    do {
+                        ga_functions.vector_generator(fixed_prefix, c2_best.discrete_vector,
+                                                      local_rng);
+                        exp2_valid = validity_checker(c2_best.discrete_vector);
+                        exp_attempts2++;
+                        if (!exp2_valid && exp_attempts2 >= 500) {
+                            std::fill(c2_best.discrete_vector.begin(),
+                                      c2_best.discrete_vector.end(), 0);
+                            break;
+                        }
+                    } while (!exp2_valid);
+
+                    if (continuous_extent > 0) {
+                        for (double& x : c2_best.continuous_vector) x = uni_dist(local_rng);
+                    }
                 }
 
-                if (!validity_checker(c1.discrete_vector)) c1 = population[p1];
-                if (!validity_checker(c2.discrete_vector)) c2 = population[p2];
-
-                next_generation[i] = c1;
+                children[i] = c1_best;
                 if (i + 1 < pop_size) {
-                    next_generation[i + 1] = c2;
+                    children[i + 1] = c2_best;
                 }
             }
         }
-        population = std::move(next_generation);
+
+        // Incremental Evaluation: Only evaluates the fresh offspring via OpenMP
+#pragma omp parallel for
+        for (std::size_t i = 0; i < pop_size; ++i) {
+            children[i].fitness =
+                fitness_function(children[i].discrete_vector, children[i].continuous_vector);
+        }
+
+        // LETHAL CRITICAL RETENTION: Implements the last-year (mu + lambda) survival scheme
+        // Merges parents and kids into a double-sized pool, then selects the absolute survival
+        // front.
+        population.insert(population.end(), std::make_move_iterator(children.begin()),
+                          std::make_move_iterator(children.end()));
+        std::sort(population.begin(), population.end(),
+                  [](const Individual& a, const Individual& b) { return a.fitness > b.fitness; });
+        population.resize(pop_size);
     }
 
     if (metrics_log.is_open()) metrics_log.close();
     return global_best_fitness;
 }
 
+/**
+ * @brief Discrete facade layer translating discrete parameters into the integrated solver.
+ */
 double optimize_discrete(std::span<const int> const fixed_prefix,
                          std::vector<int>& best_discrete_solution,
                          std::function<double(std::span<const int>)> fitness_function,
@@ -245,6 +365,9 @@ double optimize_discrete(std::span<const int> const fixed_prefix,
                            validity_checker, ga_functions, params);
 }
 
+/**
+ * @brief Continuous facade executing real-parameter optimization on frozen discrete backgrounds.
+ */
 double optimize_continuous(
     std::span<const int> const fixed_discrete_structure,
     std::vector<double>& best_continuous_solution,
@@ -263,7 +386,6 @@ double optimize_continuous(
 
     auto frozen_mutator = [](std::span<const int> prefix, std::span<int> values,
                              double mutation_rate, std::mt19937& rng) {};
-
     auto frozen_extent = [fixed_discrete_structure](std::span<const int> prefix) {
         return fixed_discrete_structure.size();
     };
@@ -276,23 +398,4 @@ double optimize_continuous(
 
     return optimize_hybrid(fixed_discrete_structure, dummy_discrete, best_continuous_solution,
                            fitness_function, dummy_validity, modular_ga_functions, modified_params);
-}
-
-// Legacy shims
-void default_generator(std::span<const int> const, std::span<int>, RandomNumberGenerator&) {}
-void default_mutator(std::span<const int> const, std::span<int>, std::size_t,
-                     RandomNumberGenerator&) {}
-void default_crossover(std::span<const int> const, std::span<const int> const,
-                       std::span<const int> const, std::span<std::span<int>>,
-                       RandomNumberGenerator&) {}
-double default_similarity(std::span<const int> const, std::span<const int> const,
-                          std::span<const int> const) {
-    return 0.0;
-}
-BaseResult<std::span<int>> optimize_span(std::span<const int> const fixed_prefix,
-                                         double (*)(const std::span<const int>),
-                                         bool (*)(const std::span<const int>), GA_Functions) {
-    int* empty_data = new int[fixed_prefix.size()];
-    std::copy(fixed_prefix.begin(), fixed_prefix.end(), empty_data);
-    return BaseResult<std::span<int>>{std::span<int>(empty_data, fixed_prefix.size()), 0.0};
 }
