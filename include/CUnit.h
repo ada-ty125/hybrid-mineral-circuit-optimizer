@@ -14,12 +14,6 @@
 #include <array>
 #include <vector>
 
-/**
- * @brief Total number of chemical/material components tracked in the simulation.
- * * [0] = Palusznium, [1] = Gormanium, [2] = Waste.
- */
-constexpr int N_COMPONENTS = 3;
-
 struct Simulator_Parameters;
 
 /**
@@ -36,73 +30,20 @@ class CUnit {
      */
     CUnit();
 
-    int n_outputs; /**< The total number of downstream output destinations from this specific unit.
-                    */
+    int n_outputs;
+    int unit_type;
 
-    /**
-     * @brief Vector of downstream target IDs.
-     * * Maps the output streams to their destination unit IDs or final product IDs.
-     */
     std::vector<int> output;
+    std::vector<double> feed;
+    std::vector<double> old_feed;
+    std::vector<std::vector<double>> concentrate;
+    std::vector<double> tails;
+    std::vector<double> total_recovery;
+    bool mark = false;
+    std::vector<std::vector<double>> k_matrix;
 
-    int unit_type = 0; /**< Technical type classification of the unit: 0 = Type A, 1 = Type B. */
-
-    /** @name Current Iteration Feed States */
-    ///@{
-    double feed[N_COMPONENTS] = {0.0, 0.0, 0.0}; /**< Current aggregate feed array entering this
-                                                    unit. Index map: [0]=P, [1]=G, [2]=W. */
-    double feed_P =
-        0.0; /**< Convenient individual tracker for current incoming Palusznium mass flow rate. */
-    double feed_G =
-        0.0; /**< Convenient individual tracker for current incoming Gormanium mass flow rate. */
-    double feed_W =
-        0.0; /**< Convenient individual tracker for current incoming Waste mass flow rate. */
-    ///@}
-
-    /** @name Previous Iteration Feed States (for Convergence Checks) */
-    ///@{
-    double old_feed[N_COMPONENTS] = {
-        0.0, 0.0, 0.0}; /**< Feed mass array recorded from the previous solver iteration. */
-    double old_feed_P =
-        0.0; /**< Previous iteration tracker for incoming Palusznium mass flow rate. */
-    double old_feed_G =
-        0.0; /**< Previous iteration tracker for incoming Gormanium mass flow rate. */
-    double old_feed_W = 0.0; /**< Previous iteration tracker for incoming Waste mass flow rate. */
-    ///@}
-
-    /**
-     * @brief Multi-dimensional array tracking the vector flow rates of the concentrate outputs.
-     * * Format: `concentrate[i][j]` where:
-     * - `i`: Output stream index number.
-     * - `j`: Material component index (0 to N_COMPONENTS-1).
-     */
-    std::vector<std::array<double, N_COMPONENTS>> concentrate;
-
-    double tails[N_COMPONENTS] = {
-        0.0, 0.0,
-        0.0}; /**< Tailings exit stream vector carrying unrecovered remnants out of the unit. */
-
-    /** @name Graph Traversal & Validity Flags */
-    ///@{
-    bool mark = false; /**< Visited flag used primarily during recursive graph traversal checks. */
-    bool reaches_palusznium = false; /**< Evaluation flag tracking if this cell's output pathway can
-                                        reach the final Palusznium stream. */
-    bool reaches_gormanium = false;  /**< Evaluation flag tracking if this cell's output pathway can
-                                        reach the final Gormanium stream. */
-    bool reaches_tailings = false;   /**< Evaluation flag tracking if this cell's output pathway can
-                                        reach the final aggregate tailings exit. */
-    ///@}
-
-    /** @name Cell Physical Constants & Kinetics */
-    ///@{
-    double volume = 10.0; /**< Total operational volumetric capacity of the cell tank. */
-    double phi = 0.1; /**< Constant multiplier or structural physical coefficient (e.g., gas holdup
-                         or fraction parameter). */
-    double rho = 3000.0; /**< Volumetric density constant representing solid material components. */
-    mutable double residence_time =
-        0.0; /**< Calculated fluid stay period within the tank. Marked mutable for lazy-evaluation
-                tracking inside const methods. */
-    ///@}
+    // Constants for calculations
+    mutable double residence_time = 0.0;
 
     /** @name Simulation & Mathematical Routines */
     ///@{
@@ -112,24 +53,10 @@ class CUnit {
      * \text{Feed}_G + \text{Feed}_W \f$).
      */
     double total_feed() const;
+    double calculate_residence_time(const Simulator_Parameters& params) const;
 
-    /**
-     * @brief Calculates and updates the internal residence time of the cell based on current
-     * throughput metrics.
-     * @return The newly computed residence time value.
-     */
-    double calculate_residence_time() const;
-
-    /**
-     * @brief Calculates the recovery rate fraction of a specific mineral component.
-     * @param st_idx Stream index target identifier.
-     * @param component Targeted mineral column selector index (0 = Palusznium, 1 = Gormanium, 2 =
-     * Waste).
-     * @param k_matrix Reference array representing kinetic multiplier variables for Type A and Type
-     * B units.
-     * @return The fractional ratio representing fractional recovery performance (0.0 to 1.0).
-     */
-    double calculate_recovery(int st_idx, int component, const double k_matrix[2][3]) const;
+    double calculate_recovery(int st_idx, int component,
+                              const std::vector<std::vector<double>>& k_matrix, double ta) const;
 
     /**
      * @brief Executes the simulation separation laws to compute and distribute current material
