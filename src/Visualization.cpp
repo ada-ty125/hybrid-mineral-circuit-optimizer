@@ -201,8 +201,8 @@ std::filesystem::path temporary_dot_path_for(const std::filesystem::path& output
 
 bool render_dot_to_png(const std::filesystem::path& dot_path,
                        const std::filesystem::path& png_path) {
-    const std::string command = "dot -Tpng " + shell_quote(dot_path.string()) + " -o " +
-                                shell_quote(png_path.string());
+    const std::string command =
+        "dot -Tpng " + shell_quote(dot_path.string()) + " -o " + shell_quote(png_path.string());
     const int status = std::system(command.c_str());
     if (status != 0) {
         std::cerr << "Could not render PNG visualization with Graphviz: " << png_path
@@ -229,8 +229,8 @@ void write_visualization_file(const char* filename, Writer write_dot, const char
     write_dot(output);
     output.close();
     if (!output) {
-        std::cerr << "Could not write " << description << " visualization output file: "
-                  << dot_path << "\n";
+        std::cerr << "Could not write " << description << " visualization output file: " << dot_path
+                  << "\n";
         return;
     }
 
@@ -273,7 +273,6 @@ void plot_span(std::span<const int> const values, const char* filename) {
     write_visualization_file(
         filename,
         [values](std::ostream& output) {
-
             if (values.size() < 5) {
                 write_error_dot(output, "circuit vector is too short");
                 return;
@@ -382,7 +381,6 @@ void plot_graph(const Graph& graph, const char* filename) {
     write_visualization_file(
         filename,
         [&graph](std::ostream& output) {
-
             output << "digraph graph {\n";
             output << "  graph [rankdir=LR, bgcolor=\"white\"];\n";
             output << "  node [fontname=\"Helvetica\", fontsize=10];\n";
