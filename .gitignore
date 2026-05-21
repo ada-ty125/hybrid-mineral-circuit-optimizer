@@ -1,5 +1,9 @@
 .vscode
 
+# Python generated files
+__pycache__/
+*.py[cod]
+
 # Local CMake build trees
 build/
 build-gcc/
@@ -48,3 +52,6 @@ examples/rng/linux/
 # Local run artifacts
 convergence.csv
 optimal_circuit.png
+
+
+scripts/
