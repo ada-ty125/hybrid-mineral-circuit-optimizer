@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -N circuit_problem1
+#PBS -j oe
+#PBS -l select=1:ncpus=8:mem=8gb
+#PBS -l walltime=02:00:00
+
+set -euo pipefail
+
+cd "$PBS_O_WORKDIR"
+
+BUILD_DIR="$PBS_O_WORKDIR/build_cx3_problem1"
+OUT_DIR="$PBS_O_WORKDIR/cx3_outputs/problem1"
+mkdir -p "$BUILD_DIR" "$OUT_DIR"
+
+if command -v module >/dev/null 2>&1; then
+    module purge || true
+    module load cmake || true
+    module load gcc || true
+    module load openmp || true
+fi
+
+cmake -S "$PBS_O_WORKDIR" -B "$BUILD_DIR" \
+    -DGA_SOURCE_FILE="$PBS_O_WORKDIR/src/Genetic_Algorithm.cpp"
+cmake --build "$BUILD_DIR" --target Circuit_Optimizer -j 8
+
+"$BUILD_DIR/bin/Circuit_Optimizer" \
+    362 988 0.935 0.2142 2 330 1 1 0.2709 fixed "$OUT_DIR/problem1.png" \
+    > "$OUT_DIR/problem1.log" 2>&1
+
+echo "Problem 1 finished"
+echo "Log: $OUT_DIR/problem1.log"
+echo "Image: $OUT_DIR/problem1.png"

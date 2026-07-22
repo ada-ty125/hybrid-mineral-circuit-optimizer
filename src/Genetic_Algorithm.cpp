@@ -10,9 +10,11 @@
 #include "Genetic_Algorithm.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <numeric>
+#include <string>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -107,6 +109,40 @@ void gaussian_mutation(std::vector<double>& vec, double mutation_rate, double si
 
 }  // namespace GA_Operators
 
+namespace {
+
+unsigned int seed_from_environment_or_random() {
+    const char* seed_text = std::getenv("GA_SEED");
+    if (seed_text != nullptr && seed_text[0] != '\0') {
+        try {
+            return static_cast<unsigned int>(std::stoul(seed_text));
+        } catch (...) {
+            std::cerr << "[GA] Ignoring invalid GA_SEED='" << seed_text << "'\n";
+        }
+    }
+    return std::random_device{}();
+}
+
+std::string convergence_path_from_environment() {
+    const char* path = std::getenv("GA_CONVERGENCE_CSV");
+    if (path != nullptr && path[0] != '\0') return path;
+    return "convergence.csv";
+}
+
+int progress_every_from_environment() {
+    const char* text = std::getenv("GA_PROGRESS_EVERY");
+    if (text != nullptr && text[0] != '\0') {
+        try {
+            return std::max(0, std::stoi(text));
+        } catch (...) {
+            std::cerr << "[GA] Ignoring invalid GA_PROGRESS_EVERY='" << text << "'\n";
+        }
+    }
+    return 0;
+}
+
+}  // namespace
+
 /**
  * @brief Unified optimization core deploying (mu + lambda) replacement and localized retries.
  * @details Implements incremental OpenMP evaluation, incest prevention, and continuous seeding
@@ -119,7 +155,8 @@ double optimize_hybrid(
     std::function<double(std::span<const int>, std::span<const double>)> fitness_function,
     std::function<bool(std::span<const int>)> validity_checker, Modern_GA_Functions ga_functions,
     Algorithm_Parameters params) {
-    std::mt19937 global_rng(std::random_device{}());
+    unsigned int run_seed = seed_from_environment_or_random();
+    std::mt19937 global_rng(run_seed);
     std::size_t discrete_extent = ga_functions.vector_extent(fixed_prefix);
     std::size_t continuous_extent = best_continuous_solution.size();
     std::size_t pop_size = params.population_size;
@@ -165,9 +202,10 @@ double optimize_hybrid(
 
     double global_best_fitness = -1e12;
     int patience_counter = 0;
-    unsigned int base_seed = std::random_device{}();
+    unsigned int base_seed = run_seed ^ 0x9e3779b9U;
+    int progress_every = progress_every_from_environment();
 
-    std::ofstream metrics_log("convergence.csv");
+    std::ofstream metrics_log(convergence_path_from_environment());
     if (metrics_log.is_open()) {
         metrics_log << "Generation,CurrentBest,GlobalBest\n";
     }
@@ -201,6 +239,16 @@ double optimize_hybrid(
 
         if (metrics_log.is_open()) {
             metrics_log << iter << "," << current_gen_best << "," << global_best_fitness << "\n";
+            metrics_log.flush();
+        }
+
+        if (progress_every > 0 &&
+            (iter % progress_every == 0 || iter + 1 == params.max_iterations)) {
+            std::cout << "[GA] generation " << iter << "/" << params.max_iterations
+                      << ", current_best=" << current_gen_best
+                      << ", global_best=" << global_best_fitness
+                      << ", patience=" << patience_counter << "\n"
+                      << std::flush;
         }
 
         if (patience_counter >= params.early_stop_patience) {

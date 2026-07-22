@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
@@ -70,15 +70,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
-
-    # Install Python
-    - name: Set up Python 3.13
-      uses: actions/setup-python@v6
-      with:
-        python-version: 3.13
 
     # Install dependencies
     - name: Install dependencies
@@ -86,27 +80,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libopenmpi-dev build-essential
 
-    - name: Configure the code
-      run: |
-          cmake .
+    - name: Configure
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-    - name: Build the graph library dependency
-      run: |
-          make esegraph
-
-    - name: Build the GA library
-      run: |
-          make geneticAlgorithm
-
-    - name: Build the circuit simulator library
-      run: |
-          make circuitSimulator
-
-    - name: Build the circuit optimizer
-      run: |
-          make Circuit_Optimizer
+    - name: Build
+      run: cmake --build build --parallel 2
 
     - name: Run the tests
       run: |
-          make -j "$(nproc)" all
-          ctest --parallel "$(nproc)" -VV
+          ctest --test-dir build --output-on-failure

@@ -203,7 +203,9 @@ Circuit_Optimization_Result run_circuit_optimization(const Algorithm_Parameters&
     if (verbose) print_params(params, mode, output_image);
 
     if (mode == "fixed") {
-        std::vector<int> fixed_prefix_layout = {1, 10, 3, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3};
+        std::vector<int> fixed_prefix_layout = {1, 44, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                                2, 2,  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                                2, 2,  2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3};
 
         Modern_GA_Functions ga_functions = {
             .vector_extent = &get_extent_fixed,
@@ -235,7 +237,7 @@ Circuit_Optimization_Result run_circuit_optimization(const Algorithm_Parameters&
                                             result.best_discrete_solution.end());
         }
     } else if (mode == "swapable") {
-        std::vector<int> base_prefix = {1, 8, 3};
+        std::vector<int> base_prefix = {2, 15, 3};
 
         Modern_GA_Functions ga_functions = {
             .vector_extent = &get_extent_swapable,
